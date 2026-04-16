@@ -2,7 +2,17 @@
   "permissions": {
     "allow": [
       "Bash(python3 *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "WebSearch",
+      "Bash(npm create *)",
+      "Bash(npm install *)",
+      "Bash(npx tailwindcss *)",
+      "Bash(./node_modules/.bin/tailwindcss init *)",
+      "Bash(npm list *)",
+      "Bash(rustc --version)",
+      "Bash(cargo --version)",
+      "Bash(npm run *)"
     ]
   }
 }

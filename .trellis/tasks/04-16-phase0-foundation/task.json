@@ -3,7 +3,7 @@
   "name": "phase0-foundation",
   "title": "Phase 0: Foundation - Project Scaffold & Data Layer",
   "description": "Set up Tauri 2 + React/TS project, Supabase backend, PowerSync sync, Python worker, and auth flow",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": "feature",
   "scope": "full-stack",
   "package": null,
