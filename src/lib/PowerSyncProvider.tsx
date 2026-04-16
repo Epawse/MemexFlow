@@ -1,6 +1,6 @@
 import { PowerSyncContext } from '@powersync/react';
 import { ReactNode, useEffect, useState } from 'react';
-import { powerSyncDb, initPowerSync } from './powersync';
+import { getPowerSyncDb, initPowerSync } from './powersync';
 
 interface PowerSyncProviderProps {
   children: ReactNode;
@@ -53,6 +53,8 @@ export function PowerSyncProvider({ children }: PowerSyncProviderProps) {
       </div>
     );
   }
+
+  const powerSyncDb = getPowerSyncDb();
 
   return (
     <PowerSyncContext.Provider value={powerSyncDb}>

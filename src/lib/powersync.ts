@@ -164,21 +164,52 @@ class SupabaseConnector {
   }
 }
 
-// Initialize PowerSync database
-export const powerSyncDb = new PowerSyncDatabase({
-  database: {
-    dbFilename: 'memexflow.db',
-  },
-  schema: Object.values(schema),
-  flags: {
-    enableMultiTabs: false, // Tauri is single-instance
-  },
-});
+// Initialize PowerSync database (only if URL is configured)
+let _powerSyncDb: PowerSyncDatabase | null = null;
+let _connector: SupabaseConnector | null = null;
 
-export const connector = new SupabaseConnector();
+export function getPowerSyncDb(): PowerSyncDatabase | null {
+  if (!import.meta.env.VITE_POWERSYNC_URL) {
+    return null;
+  }
+
+  if (!_powerSyncDb) {
+    _powerSyncDb = new PowerSyncDatabase({
+      database: {
+        dbFilename: 'memexflow.db',
+      },
+      schema: Object.values(schema),
+      flags: {
+        enableMultiTabs: false, // Tauri is single-instance
+      },
+    });
+  }
+
+  return _powerSyncDb;
+}
+
+export function getConnector(): SupabaseConnector | null {
+  if (!import.meta.env.VITE_POWERSYNC_URL) {
+    return null;
+  }
+
+  if (!_connector) {
+    _connector = new SupabaseConnector();
+  }
+
+  return _connector;
+}
 
 // Initialize connection
 export async function initPowerSync() {
+  const powerSyncDb = getPowerSyncDb();
+  const connector = getConnector();
+
+  if (!powerSyncDb || !connector) {
+    console.warn('PowerSync not configured - skipping initialization');
+    return;
+  }
+
   await powerSyncDb.init();
 
   // Connect to PowerSync service
