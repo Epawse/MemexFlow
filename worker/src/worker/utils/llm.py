@@ -1,69 +1,86 @@
 """LLM API wrappers for the AI worker.
 
+Uses Google Gemini via AI Studio API key.
 Model tier strategy (per PRD):
-- Ingestion (URL → clean text): Cheap (Haiku / GPT-4o-mini)
-- Extraction (text → claims): Mid (Sonnet / GPT-4o)
-- Briefing (memories → brief): Strong (Sonnet-4.6 / GPT-4o)
-- Recall (query → answer): Mid (Sonnet) + embedding search
+- Ingestion (URL → clean text): gemini-3-flash-preview (fast)
+- Extraction (text → claims): gemini-3-flash-preview (balanced)
+- Briefing (memories → brief): gemini-3-flash-preview (balanced)
 """
 
+import json
 import os
-from typing import Optional
-from anthropic import Anthropic
-from openai import OpenAI
+import httpx
+
+GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 
 
-def get_anthropic_client() -> Anthropic:
-    return Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+def _get_api_key() -> str:
+    """Get API key from environment (lazy load)."""
+    key = os.environ.get("GEMINI_API_KEY", "")
+    if not key:
+        raise ValueError("GEMINI_API_KEY must be set")
+    return key
 
 
-def get_openai_client() -> OpenAI:
-    return OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-
-
-async def call_claude(
+async def call_gemini(
     prompt: str,
-    system: Optional[str] = None,
-    model: str = "claude-sonnet-4-6-20250514",
+    system: str | None = None,
+    model: str = "gemini-2.5-flash",
     max_tokens: int = 4096,
 ) -> str:
-    """Call Claude API with the given prompt."""
-    client = get_anthropic_client()
-    kwargs: dict = {
-        "model": model,
-        "max_tokens": max_tokens,
-        "messages": [{"role": "user", "content": prompt}],
-    }
+    """Call Google Gemini API."""
+    api_key = _get_api_key()
+
+    contents = []
     if system:
-        kwargs["system"] = system
+        contents.append({"role": "user", "parts": [{"text": system}]})
+        contents.append({"role": "model", "parts": [{"text": "Understood."}]})
+    contents.append({"role": "user", "parts": [{"text": prompt}]})
 
-    response = client.messages.create(**kwargs)
-    return response.content[0].text
+    payload = {
+        "contents": contents,
+        "generationConfig": {
+            "maxOutputTokens": max_tokens,
+            "temperature": 0.3,
+        },
+    }
+
+    url = f"{GEMINI_BASE}/{model}:generateContent?key={api_key}"
+
+    async with httpx.AsyncClient(timeout=60) as client:
+        resp = await client.post(url, json=payload)
+        resp.raise_for_status()
+        data = resp.json()
+
+    candidates = data.get("candidates", [])
+    if candidates:
+        parts = candidates[0].get("content", {}).get("parts", [])
+        if parts:
+            return parts[0].get("text", "")
+
+    raise ValueError("Empty response from Gemini")
 
 
-async def call_openai(
+async def call_llm(
     prompt: str,
-    system: Optional[str] = None,
-    model: str = "gpt-4o",
+    system: str | None = None,
+    model: str = "gemini-3-flash-preview",
     max_tokens: int = 4096,
 ) -> str:
-    """Call OpenAI API with the given prompt."""
-    client = get_openai_client()
-    kwargs: dict = {
-        "model": model,
-        "max_tokens": max_tokens,
-        "messages": [],
-    }
-    if system:
-        kwargs["messages"].append({"role": "system", "content": system})
-    kwargs["messages"].append({"role": "user", "content": prompt})
-
-    response = client.chat.completions.create(**kwargs)
-    return response.choices[0].message.content or ""
+    """Generic LLM call — currently backed by Gemini."""
+    return await call_gemini(prompt=prompt, system=system, model=model, max_tokens=max_tokens)
 
 
-async def generate_embedding(text: str, model: str = "text-embedding-3-small") -> list[float]:
-    """Generate embedding vector for the given text."""
-    client = get_openai_client()
-    response = client.embeddings.create(input=text, model=model)
-    return response.data[0].embedding
+async def generate_embedding(text: str, model: str = "text-embedding-004") -> list[float]:
+    """Generate embedding vector using Gemini embedding model."""
+    api_key = _get_api_key()
+
+    url = f"{GEMINI_BASE}/{model}:embedContent?key={api_key}"
+    payload = {"model": f"models/{model}", "content": {"parts": [{"text": text}]}}
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.post(url, json=payload)
+        resp.raise_for_status()
+        data = resp.json()
+
+    return data.get("embedding", {}).get("values", [])

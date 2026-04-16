@@ -5,13 +5,12 @@ Each handler processes a specific job type:
 - ingestion: URL → clean text extraction
 - extraction: Text → structured claims/memories
 - briefing: Memories → research brief
-- signal: Keyword/topic matching
 """
 
 import json
 from typing import Any
 
-from ..utils.llm import call_claude, call_openai, generate_embedding
+from ..utils.llm import call_llm, generate_embedding
 from ..utils.logging import logger
 
 
@@ -43,10 +42,10 @@ Raw content:
 
 Return JSON with keys: title, content, summary (1-2 sentence summary)"""
 
-    response = await call_claude(
+    response = await call_llm(
         prompt=prompt,
         system="You are a content extraction assistant. Always respond with valid JSON.",
-        model="claude-haiku-4-5-20251001",
+        model="gemini-3-flash-preview",
         max_tokens=4096,
     )
 
@@ -82,15 +81,14 @@ Content:
 
 Return JSON array of objects with keys: content, memory_type, confidence"""
 
-    response = await call_claude(
+    response = await call_llm(
         prompt=prompt,
         system="You are a knowledge extraction assistant. Extract verifiable claims. Always respond with valid JSON array.",
-        model="claude-sonnet-4-6-20250514",
+        model="gemini-3-flash-preview",
         max_tokens=4096,
     )
 
     try:
-        # Try to parse as JSON array
         memories = json.loads(response)
         if not isinstance(memories, list):
             memories = [memories]
@@ -103,7 +101,7 @@ Return JSON array of objects with keys: content, memory_type, confidence"""
         if text:
             try:
                 embedding = await generate_embedding(text)
-                memory["embedding"] = embedding[:10]  # Store first 10 dims as placeholder
+                memory["embedding"] = embedding
             except Exception as e:
                 logger.warning("embedding_failed", error=str(e))
 
@@ -129,7 +127,7 @@ async def handle_briefing(input_data: dict[str, Any]) -> dict[str, Any]:
 
     memory_texts = "\n".join(
         f"- [{m.get('memory_type', 'note')}] {m.get('content', '')}"
-        for m in memories[:50]  # Limit to 50 memories
+        for m in memories[:50]
     )
 
     prompt = f"""Generate a research brief based on the following memories from a research project.
@@ -144,10 +142,10 @@ Memories:
 
 Return the brief in markdown format."""
 
-    response = await call_claude(
+    response = await call_llm(
         prompt=prompt,
         system="You are a research assistant. Write clear, evidence-based briefs. Use markdown formatting.",
-        model="claude-sonnet-4-6-20250514",
+        model="gemini-3-flash-preview",
         max_tokens=4096,
     )
 
