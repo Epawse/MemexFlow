@@ -1,94 +1,115 @@
 # Directory Structure
 
-> How frontend (Flutter/Dart) code is organized in this project.
+> How frontend (React/TypeScript + Tauri 2) code is organized in this project.
 
 ---
 
 ## Overview
 
-MemexFlow frontend is a Flutter application targeting **macOS + Windows** first, with **iOS + Android** as second phase. The project uses feature-first organization with a shared core layer.
+MemexFlow frontend is a React/TypeScript application wrapped in Tauri 2, targeting **macOS** first, with **Windows** as Phase 2. The project uses feature-first organization with a shared core layer.
 
 ---
 
 ## Directory Layout
 
 ```
-app/
-├── lib/
-│   ├── main.dart                    # App entry point
-│   ├── app.dart                     # MaterialApp / router setup
-│   ├── core/                        # Shared infrastructure
-│   │   ├── config/                  # App config, env, constants
-│   │   │   ├── app_config.dart
-│   │   │   └── constants.dart
-│   │   ├── database/                # SQLite local database
-│   │   │   ├── database.dart        # Database singleton
-│   │   │   ├── tables.dart          # Drift table definitions
-│   │   │   └── daos/               # Data access objects
-│   │   ├── network/                 # Supabase client, API helpers
-│   │   │   ├── supabase_client.dart
-│   │   │   └── api_error.dart
-│   │   ├── models/                  # Shared domain models
-│   │   │   ├── project.dart
-│   │   │   ├── candidate.dart
-│   │   │   ├── memory.dart
-│   │   │   └── brief.dart
-│   │   ├── theme/                   # Theme data, colors, typography
-│   │   │   ├── app_theme.dart
-│   │   │   └── app_colors.dart
-│   │   ├── routing/                 # GoRouter configuration
-│   │   │   └── app_router.dart
-│   │   └── utils/                   # Pure utility functions
-│   │       ├── date_utils.dart
-│   │       └── string_utils.dart
-│   ├── features/                    # Feature modules
-│   │   ├── home/
-│   │   │   ├── home_screen.dart
-│   │   │   └── widgets/
-│   │   ├── projects/
-│   │   │   ├── projects_screen.dart
-│   │   │   ├── project_detail_screen.dart
-│   │   │   ├── providers/
-│   │   │   └── widgets/
-│   │   ├── capture/
-│   │   │   ├── capture_screen.dart
-│   │   │   ├── providers/
-│   │   │   └── widgets/
-│   │   ├── signals/
-│   │   │   ├── signals_screen.dart
-│   │   │   ├── providers/
-│   │   │   └── widgets/
-│   │   ├── memory/
-│   │   │   ├── memory_screen.dart
-│   │   │   ├── providers/
-│   │   │   └── widgets/
-│   │   ├── briefs/
-│   │   │   ├── briefs_screen.dart
-│   │   │   ├── providers/
-│   │   │   └── widgets/
-│   │   └── recall/
-│   │       ├── recall_screen.dart
-│   │       ├── providers/
-│   │       └── widgets/
-│   └── shared/                      # Reusable widgets across features
-│       ├── widgets/
-│       │   ├── candidate_card.dart
-│       │   ├── memory_card.dart
-│       │   ├── project_selector.dart
-│       │   └── tag_chips.dart
-│       └── layouts/
-│           ├── scaffold_with_nav.dart
-│           └── responsive_layout.dart
-├── test/
-│   ├── unit/
-│   ├── widget/
-│   └── integration/
+src/
+├── main.tsx                         # React entry point
+├── App.tsx                          # Root component, router setup
+├── core/                            # Shared infrastructure
+│   ├── config/                      # App config, env, constants
+│   │   ├── app-config.ts
+│   │   └── constants.ts
+│   ├── database/                    # PowerSync + SQLite local database
+│   │   ├── powersync.ts             # PowerSync client singleton
+│   │   ├── schema.ts                # PowerSync schema definitions
+│   │   └── queries.ts               # Reusable SQL queries
+│   ├── network/                     # Supabase client, API helpers
+│   │   ├── supabase-client.ts
+│   │   └── api-error.ts
+│   ├── auth/                        # Authentication logic
+│   │   ├── auth-provider.tsx        # Auth context provider
+│   │   └── use-auth.ts              # Auth hook
+│   ├── theme/                       # Theme config, colors, typography
+│   │   ├── theme.ts
+│   │   └── colors.ts
+│   ├── routing/                     # React Router configuration
+│   │   └── router.tsx
+│   └── utils/                       # Pure utility functions
+│       ├── date-utils.ts
+│       └── string-utils.ts
+├── types/                           # Shared TypeScript types
+│   ├── project.ts
+│   ├── candidate.ts
+│   ├── memory.ts
+│   └── brief.ts
+├── hooks/                           # Shared React hooks
+│   ├── use-powersync.ts             # PowerSync data hooks
+│   ├── use-supabase-query.ts        # React Query + Supabase
+│   └── use-debounce.ts
+├── tauri/                           # Tauri-specific integrations
+│   ├── commands.ts                  # Rust command bindings
+│   └── events.ts                    # Tauri event listeners
+├── features/                        # Feature modules
+│   ├── home/
+│   │   ├── HomePage.tsx
+│   │   ├── hooks/
+│   │   └── components/
+│   ├── projects/
+│   │   ├── ProjectsPage.tsx
+│   │   ├── ProjectDetailPage.tsx
+│   │   ├── hooks/
+│   │   └── components/
+│   ├── capture/
+│   │   ├── CapturePage.tsx
+│   │   ├── hooks/
+│   │   └── components/
+│   ├── signals/
+│   │   ├── SignalsPage.tsx
+│   │   ├── hooks/
+│   │   └── components/
+│   ├── memory/
+│   │   ├── MemoryPage.tsx
+│   │   ├── hooks/
+│   │   └── components/
+│   ├── briefs/
+│   │   ├── BriefsPage.tsx
+│   │   ├── hooks/
+│   │   └── components/
+│   └── recall/
+│       ├── RecallPage.tsx
+│       ├── hooks/
+│       └── components/
+├── shared/                          # Reusable components across features
+│   ├── components/
+│   │   ├── CandidateCard.tsx
+│   │   ├── MemoryCard.tsx
+│   │   ├── ProjectSelector.tsx
+│   │   └── TagChips.tsx
+│   └── layouts/
+│       ├── AppLayout.tsx
+│       └── ResponsiveLayout.tsx
 ├── assets/
 │   ├── icons/
 │   ├── images/
 │   └── fonts/
-├── pubspec.yaml
-└── analysis_options.yaml
+├── index.html
+├── vite.config.ts
+├── tsconfig.json
+└── tailwind.config.ts
+
+src-tauri/                           # Tauri Rust backend
+├── src/
+│   ├── main.rs                      # Tauri app entry
+│   ├── commands.rs                  # Rust commands exposed to frontend
+│   └── lib.rs
+├── Cargo.toml
+└── tauri.conf.json
+
+tests/
+├── unit/
+├── component/
+└── integration/
 ```
 
 ---
@@ -98,24 +119,25 @@ app/
 ### Feature-first structure
 
 Each feature in `features/` contains:
-- **Screen widgets** — top-level page widgets
-- **providers/** — Riverpod providers for state and data access
-- **widgets/** — feature-specific widgets (not reusable outside the feature)
+- **Page components** — top-level route components (e.g., `HomePage.tsx`)
+- **hooks/** — React hooks for state and data access (React Query, PowerSync)
+- **components/** — feature-specific components (not reusable outside the feature)
 
 ### Rules
 
-1. **Features don't import from other features** — share via `core/` or `shared/`
-2. **core/** has no Flutter widget imports — it's pure Dart (models, database, network)
-3. **shared/widgets/** contains reusable UI components used by 2+ features
-4. **One widget per file** for top-level widgets; small helper widgets can be in the same file
+1. **Features don't import from other features** — share via `core/`, `shared/`, `hooks/`, or `types/`
+2. **core/** has no React component imports — it's pure TypeScript (config, database, network, utils)
+3. **shared/components/** contains reusable UI components used by 2+ features
+4. **One component per file** for top-level components; small helper components can be in the same file
+5. **Types are centralized** in `types/` for domain models shared across features
 
 ### Adding a new feature
 
-1. Create directory under `features/<feature_name>/`
-2. Add screen widget(s)
-3. Add providers in `providers/`
-4. Add feature-specific widgets in `widgets/`
-5. Register routes in `core/routing/app_router.dart`
+1. Create directory under `features/<feature-name>/`
+2. Add page component(s) (e.g., `FeaturePage.tsx`)
+3. Add hooks in `hooks/` for data fetching and state management
+4. Add feature-specific components in `components/`
+5. Register routes in `core/routing/router.tsx`
 
 ---
 
@@ -123,21 +145,22 @@ Each feature in `features/` contains:
 
 | Item | Convention | Example |
 |------|-----------|---------|
-| Files | `snake_case.dart` | `project_detail_screen.dart` |
-| Classes | `PascalCase` | `ProjectDetailScreen` |
-| Widgets | `PascalCase`, suffix describes type | `CandidateCard`, `MemoryListTile` |
-| Screens | `*Screen` suffix | `HomeScreen`, `BriefsScreen` |
-| Providers | `camelCase` + `Provider` suffix | `projectListProvider` |
-| Extensions | `*Extension` suffix | `DateTimeExtension` |
-| Constants | `camelCase` for top-level | `defaultPadding` |
-| Private | Leading underscore | `_buildHeader()` |
-| Test files | `<file>_test.dart` | `candidate_card_test.dart` |
+| Files | `kebab-case.ts(x)` | `project-detail-page.tsx` |
+| Components | `PascalCase` | `ProjectDetailPage` |
+| UI Components | `PascalCase`, suffix describes type | `CandidateCard`, `MemoryListItem` |
+| Pages | `*Page` suffix | `HomePage`, `BriefsPage` |
+| Hooks | `camelCase` + `use*` prefix | `useProjectList`, `usePowerSync` |
+| Types/Interfaces | `PascalCase` | `Project`, `Memory`, `ApiError` |
+| Constants | `SCREAMING_SNAKE_CASE` for globals | `DEFAULT_PADDING`, `API_BASE_URL` |
+| Private | No leading underscore (use module scope) | `function buildHeader()` |
+| Test files | `<file>.test.ts(x)` | `candidate-card.test.tsx` |
 
 ---
 
 ## Examples
 
-- Feature module: `lib/features/projects/`
-- Shared widget: `lib/shared/widgets/candidate_card.dart`
-- Domain model: `lib/core/models/project.dart`
-- Provider: `lib/features/projects/providers/project_list_provider.dart`
+- Feature module: `src/features/projects/`
+- Shared component: `src/shared/components/CandidateCard.tsx`
+- Domain type: `src/types/project.ts`
+- Hook: `src/features/projects/hooks/use-project-list.ts`
+- Tauri command: `src/tauri/commands.ts`

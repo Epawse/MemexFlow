@@ -1,53 +1,86 @@
-# Provider Guidelines
+# Hook Guidelines
 
-> How Riverpod providers are used in this project (replaces "Hook Guidelines" for Flutter).
+> How React hooks are used in this project.
 
 ---
 
 ## Overview
 
-MemexFlow uses **Riverpod** (with code generation) as the primary state management and dependency injection solution. Providers replace the concept of "hooks" from React.
+MemexFlow uses **React hooks** with **React Query** for server state and **PowerSync** for real-time sync. Custom hooks encapsulate data fetching, mutations, and local state logic.
 
 ---
 
-## Provider Patterns
+## Hook Patterns
 
-### Provider types and when to use each
+### Hook types and when to use each
 
-| Provider Type | Use Case | Example |
-|--------------|----------|---------|
-| `Provider` | Computed/derived values, services | `supabaseClientProvider` |
-| `FutureProvider` | One-shot async data fetch | `projectDetailProvider(id)` |
-| `StreamProvider` | Real-time data streams | `candidateListStreamProvider` |
-| `NotifierProvider` | Mutable state with methods | `captureFormNotifierProvider` |
-| `AsyncNotifierProvider` | Async mutable state with methods | `projectListNotifierProvider` |
+| Hook Type | Use Case | Example |
+|-----------|----------|---------|
+| `useMemo` | Computed/derived values | `useSupabaseClient` |
+| `useQuery` | Server data fetch (read-only) | `useProjectDetail(id)` |
+| `useSubscription` | Real-time data streams (PowerSync) | `useCandidateList()` |
+| `useState` | Simple local state | `useCaptureForm()` |
+| `useReducer` | Complex local state with actions | `useFilterState()` |
+| `useQuery + useMutation` | Server data with mutations | `useProjectList()` |
 
-### Standard provider file structure
+### Standard custom hook structure
 
-```dart
-import 'package:riverpod_annotation/riverpod_annotation.dart';
+```typescript
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSupabase } from '@/core/hooks/useSupabase';
 
-part 'project_list_provider.g.dart';
+export function useProjectList() {
+  const supabase = useSupabase();
+  const queryClient = useQueryClient();
 
-@riverpod
-class ProjectListNotifier extends _$ProjectListNotifier {
-  @override
-  Future<List<Project>> build() async {
-    final client = ref.watch(supabaseClientProvider);
-    return client.from('projects').select().order('updated_at');
-  }
+  const query = useQuery({
+    queryKey: ['projects'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .order('updated_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+  });
 
-  Future<void> createProject(ProjectCreate input) async {
-    final client = ref.read(supabaseClientProvider);
-    await client.from('projects').insert(input.toJson());
-    ref.invalidateSelf();
-  }
+  const createProject = useMutation({
+    mutationFn: async (input: ProjectCreate) => {
+      const { data, error } = await supabase
+        .from('projects')
+        .insert(input);
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+    },
+  });
 
-  Future<void> deleteProject(String id) async {
-    final client = ref.read(supabaseClientProvider);
-    await client.from('projects').delete().eq('id', id);
-    ref.invalidateSelf();
-  }
+  const deleteProject = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+    },
+  });
+
+  return {
+    projects: query.data,
+    isLoading: query.isLoading,
+    error: query.error,
+    createProject: createProject.mutateAsync,
+    deleteProject: deleteProject.mutateAsync,
+  };
 }
 ```
 
@@ -55,33 +88,56 @@ class ProjectListNotifier extends _$ProjectListNotifier {
 
 ## Data Fetching
 
-### Use `FutureProvider` for read-only data
+### Use `useQuery` for read-only data
 
-```dart
-@riverpod
-Future<ProjectDetail> projectDetail(Ref ref, String projectId) async {
-  final client = ref.watch(supabaseClientProvider);
-  final data = await client
-      .from('projects')
-      .select('*, memories(count), candidates(count)')
-      .eq('id', projectId)
-      .single();
-  return ProjectDetail.fromJson(data);
+```typescript
+export function useProjectDetail(projectId: string) {
+  const supabase = useSupabase();
+
+  return useQuery({
+    queryKey: ['projects', projectId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*, memories(count), candidates(count)')
+        .eq('id', projectId)
+        .single();
+      
+      if (error) throw error;
+      return data as ProjectDetail;
+    },
+    enabled: !!projectId,
+  });
 }
 ```
 
-### Use `AsyncNotifierProvider` for data with mutations
+### Use `useQuery + useMutation` for data with mutations
 
-When a screen needs both read and write operations, use `AsyncNotifierProvider` (see example above).
+When a component needs both read and write operations, combine `useQuery` with `useMutation` (see example above).
+
+### Use PowerSync `useQuery` for real-time local-first data
+
+```typescript
+import { useQuery } from '@powersync/react';
+
+export function useCandidateList(projectId: string) {
+  const { data } = useQuery(
+    'SELECT * FROM candidates WHERE project_id = ? ORDER BY created_at DESC',
+    [projectId]
+  );
+
+  return data;
+}
+```
 
 ### Invalidation over manual cache management
 
-```dart
+```typescript
 // GOOD — invalidate to trigger refetch
-ref.invalidate(projectListNotifierProvider);
+queryClient.invalidateQueries({ queryKey: ['projects'] });
 
-// BAD — manually updating state to mirror server state
-state = AsyncData(currentList..add(newProject));
+// BAD — manually updating cache to mirror server state
+queryClient.setQueryData(['projects'], (old) => [...old, newProject]);
 ```
 
 ---
@@ -90,48 +146,72 @@ state = AsyncData(currentList..add(newProject));
 
 | Item | Convention | Example |
 |------|-----------|---------|
-| Provider file | `<feature>_provider.dart` | `project_list_provider.dart` |
-| Simple provider | `camelCaseProvider` | `supabaseClientProvider` |
-| Notifier class | `PascalCaseNotifier` | `ProjectListNotifier` |
-| Notifier provider | `camelCaseNotifierProvider` | `projectListNotifierProvider` |
-| Family providers | function with params | `projectDetail(ref, id)` |
+| Hook file | `use<Feature>.ts` | `useProjectList.ts` |
+| Hook function | `use<Feature>` | `useProjectList` |
+| Hook with params | `use<Feature>(params)` | `useProjectDetail(id)` |
+| Query keys | `['feature', ...params]` | `['projects', projectId]` |
 
 ---
 
 ## Organization Rules
 
-1. **Providers live in `features/<feature>/providers/`** — not in a global `providers/` folder
-2. **Core infrastructure providers** (Supabase client, database, config) live in `core/`
-3. **One provider concept per file** — don't mix unrelated providers
-4. **Run `build_runner`** after changing provider definitions:
-   ```bash
-   dart run build_runner build --delete-conflicting-outputs
-   ```
+1. **Hooks live in `features/<feature>/hooks/`** — not in a global `hooks/` folder
+2. **Core infrastructure hooks** (Supabase client, PowerSync, auth) live in `core/hooks/`
+3. **One hook concept per file** — don't mix unrelated hooks
+4. **Export hooks as named exports** — no default exports for hooks
 
 ---
 
 ## Common Mistakes
 
-### 1. Using `ref.read` in `build()` instead of `ref.watch`
-In `build()`, always use `ref.watch` to react to changes. Use `ref.read` only in callbacks and event handlers.
+### 1. Calling hooks conditionally
+
+```typescript
+// BAD — hooks must be called unconditionally
+if (shouldFetch) {
+  const { data } = useProjectList();
+}
+
+// GOOD — use the enabled option
+const { data } = useProjectList({ enabled: shouldFetch });
+```
 
 ### 2. Not handling loading and error states
 
-```dart
+```typescript
 // GOOD
-final projectsAsync = ref.watch(projectListNotifierProvider);
-return projectsAsync.when(
-  data: (projects) => ProjectListView(projects: projects),
-  loading: () => const CircularProgressIndicator(),
-  error: (e, st) => ErrorDisplay(error: e),
-);
+function ProjectList() {
+  const { projects, isLoading, error } = useProjectList();
+
+  if (isLoading) return <Spinner />;
+  if (error) return <ErrorDisplay error={error} />;
+  
+  return <ProjectListView projects={projects} />;
+}
 ```
 
-### 3. Over-using global providers
-Don't make everything a global provider. Widget-local state (`useState` via hooks or `StatefulWidget`) is fine for ephemeral UI state.
+### 3. Over-using custom hooks
+
+Don't extract every piece of state into a custom hook. Component-local `useState` is fine for ephemeral UI state like form inputs or toggle states.
 
 ### 4. Forgetting to invalidate after mutations
-After any create/update/delete, call `ref.invalidateSelf()` or `ref.invalidate(targetProvider)` to refresh data.
 
-### 5. Putting UI logic in providers
-Providers handle data and business logic. Navigation, snackbars, and dialog presentation stay in the widget layer.
+After any create/update/delete, call `queryClient.invalidateQueries()` to refresh data. Use the `onSuccess` callback in `useMutation`.
+
+### 5. Putting UI logic in hooks
+
+Hooks handle data and business logic. Navigation, toasts, and dialog presentation stay in the component layer.
+
+### 6. Not using query keys consistently
+
+Always use the same query key structure for the same data. Inconsistent keys prevent proper cache invalidation.
+
+```typescript
+// BAD — inconsistent keys
+useQuery({ queryKey: ['project', id] });
+useQuery({ queryKey: ['projects', id] });
+
+// GOOD — consistent keys
+useQuery({ queryKey: ['projects', id] });
+useQuery({ queryKey: ['projects', id] });
+```

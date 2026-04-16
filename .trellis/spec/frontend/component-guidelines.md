@@ -1,93 +1,78 @@
-# Widget Guidelines
+# Component Guidelines
 
-> How widgets (components) are built in this project.
+> How components are built in this project.
 
 ---
 
 ## Overview
 
-MemexFlow uses Flutter with Material 3 design. Widgets are organized by feature, with shared reusable widgets in `shared/widgets/`. The project targets desktop-first (macOS/Windows) with responsive layouts for mobile.
+MemexFlow uses React 19 with Tauri 2 and Tailwind CSS. Components are organized by feature, with shared reusable components in `shared/components/`. The project targets desktop-first (macOS/Windows) with responsive layouts for mobile.
 
 ---
 
-## Widget Structure
+## Component Structure
 
-### Standard widget file structure
+### Standard component file structure
 
-```dart
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+```typescript
+import { Candidate } from '@/types/candidate';
 
-/// Displays a candidate item with summary, tags, and action buttons.
-class CandidateCard extends ConsumerWidget {
-  const CandidateCard({
-    super.key,
-    required this.candidate,
-    this.onConfirm,
-    this.onIgnore,
-  });
+interface CandidateCardProps {
+  candidate: Candidate;
+  onConfirm?: () => void;
+  onIgnore?: () => void;
+}
 
-  final Candidate candidate;
-  final VoidCallback? onConfirm;
-  final VoidCallback? onIgnore;
+/**
+ * Displays a candidate item with summary, tags, and action buttons.
+ */
+export function CandidateCard({ candidate, onConfirm, onIgnore }: CandidateCardProps) {
+  return (
+    <div className="rounded-lg border bg-card p-4 shadow-sm">
+      <div className="flex flex-col gap-2">
+        {renderHeader()}
+        {renderSummary()}
+        {renderActions()}
+      </div>
+    </div>
+  );
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(theme),
-            const SizedBox(height: 8),
-            _buildSummary(theme),
-            const SizedBox(height: 12),
-            _buildActions(theme),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(ThemeData theme) { ... }
-  Widget _buildSummary(ThemeData theme) { ... }
-  Widget _buildActions(ThemeData theme) { ... }
+  function renderHeader() { ... }
+  function renderSummary() { ... }
+  function renderActions() { ... }
 }
 ```
 
 ### Rules
 
-1. **Use `const` constructors** wherever possible
-2. **All parameters via named constructor** — use `required` for mandatory fields
-3. **Break `build()` into `_build*` helper methods** when it exceeds ~40 lines
-4. **Use `ConsumerWidget`** (Riverpod) when the widget reads providers; plain `StatelessWidget` otherwise
-5. **One public widget per file** for screens and major components
+1. **Use functional components** with TypeScript interfaces for props
+2. **Define props interface** above the component — use required vs optional types
+3. **Break JSX into `render*` helper functions** when the component exceeds ~40 lines
+4. **Use hooks** (useState, useContext, custom hooks) for state and side effects
+5. **One exported component per file** for screens and major components
+6. **File naming**: `candidate-card.tsx` (kebab-case)
 
 ---
 
 ## Props Conventions
 
-### Use named parameters with required/optional distinction
+### Use TypeScript interfaces with required/optional distinction
 
-```dart
+```typescript
 // GOOD — clear required vs optional
-class MemoryCard extends StatelessWidget {
-  const MemoryCard({
-    super.key,
-    required this.memory,
-    required this.onTap,
-    this.showProject = true,
-    this.compact = false,
-  });
+interface MemoryCardProps {
+  memory: Memory;
+  onTap: () => void;
+  showProject?: boolean;  // Optional with default
+  compact?: boolean;      // Optional with default
+}
 
-  final Memory memory;
-  final VoidCallback onTap;
-  final bool showProject;
-  final bool compact;
-
+export function MemoryCard({ 
+  memory, 
+  onTap, 
+  showProject = true, 
+  compact = false 
+}: MemoryCardProps) {
   ...
 }
 ```
@@ -97,60 +82,68 @@ class MemoryCard extends StatelessWidget {
 | Pattern | Naming | Example |
 |---------|--------|---------|
 | Button press | `onX` | `onConfirm`, `onDelete` |
-| Value change | `onXChanged` | `onFilterChanged` |
-| Selection | `onXSelected` | `onProjectSelected` |
+| Value change | `onXChange` | `onFilterChange` |
+| Selection | `onXSelect` | `onProjectSelect` |
 
 ---
 
 ## Styling Patterns
 
-### Use Material 3 theme tokens
+### Use Tailwind CSS utility classes
 
-```dart
-// GOOD — uses theme
-final theme = Theme.of(context);
-Text(title, style: theme.textTheme.titleMedium);
-Container(color: theme.colorScheme.surfaceContainerLow);
+```typescript
+// GOOD — uses Tailwind utilities
+<h2 className="text-lg font-semibold text-foreground">
+  {title}
+</h2>
+<div className="bg-surface-low rounded-md p-4">
+  {content}
+</div>
 
-// BAD — hardcoded values
-Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600));
-Container(color: Color(0xFFF5F5F5));
+// BAD — inline styles
+<h2 style={{ fontSize: '16px', fontWeight: 600 }}>
+  {title}
+</h2>
+<div style={{ backgroundColor: '#F5F5F5' }}>
+  {content}
+</div>
 ```
 
 ### Spacing
 
-Use consistent spacing constants:
+Use Tailwind spacing scale consistently:
 
-```dart
-// In core/theme/app_theme.dart
-abstract class Spacing {
-  static const double xs = 4;
-  static const double sm = 8;
-  static const double md = 16;
-  static const double lg = 24;
-  static const double xl = 32;
-}
+```typescript
+// Tailwind spacing: 1 unit = 0.25rem (4px)
+// xs = gap-1 (4px)
+// sm = gap-2 (8px)
+// md = gap-4 (16px)
+// lg = gap-6 (24px)
+// xl = gap-8 (32px)
+
+<div className="flex flex-col gap-4">  {/* 16px spacing */}
+  <Header />
+  <Content />
+</div>
 ```
 
 ### Desktop-aware layout
 
-```dart
-// Use LayoutBuilder for responsive design
-class ResponsiveLayout extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth > 1200) {
-          return _buildWideLayout();   // 3-column
-        } else if (constraints.maxWidth > 800) {
-          return _buildMediumLayout();  // 2-column
-        }
-        return _buildCompactLayout();   // Single column
-      },
-    );
-  }
+```typescript
+// Use Tailwind responsive breakpoints
+export function ResponsiveLayout() {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      {/* Single column on mobile, 2 on tablet, 3 on desktop */}
+      <Panel />
+      <Panel />
+      <Panel />
+    </div>
+  );
 }
+
+// Or use custom breakpoints with CSS
+// Breakpoints: sm: 640px, md: 768px, lg: 1024px, xl: 1280px, 2xl: 1536px
 ```
 
 ---
@@ -159,38 +152,52 @@ class ResponsiveLayout extends StatelessWidget {
 
 ### Minimum requirements
 
-- All interactive elements must have semantic labels
-- Use `Semantics` widget for custom components
+- All interactive elements must have ARIA labels
+- Use semantic HTML elements (`<button>`, `<nav>`, `<main>`)
 - Maintain minimum touch target of 48x48 on mobile
-- Support keyboard navigation on desktop (focus traversal)
+- Support keyboard navigation on desktop (tab order, focus states)
 - Test with screen reader on at least one platform
 
-```dart
-// GOOD
-Semantics(
-  label: 'Confirm candidate for knowledge base',
-  child: IconButton(
-    icon: const Icon(Icons.check),
-    onPressed: onConfirm,
-  ),
-)
+```typescript
+// GOOD — semantic HTML + ARIA
+<button
+  aria-label="Confirm candidate for knowledge base"
+  onClick={onConfirm}
+  className="rounded-md p-2 hover:bg-accent focus:outline-none focus:ring-2"
+>
+  <CheckIcon className="h-5 w-5" />
+</button>
+
+// GOOD — accessible form input
+<label htmlFor="search" className="sr-only">
+  Search memories
+</label>
+<input
+  id="search"
+  type="text"
+  placeholder="Search..."
+  className="..."
+/>
 ```
 
 ---
 
 ## Common Mistakes
 
-### 1. Putting business logic in widgets
-Widgets should only handle presentation. All data fetching, transformation, and side effects go in providers.
+### 1. Putting business logic in components
+Components should only handle presentation. All data fetching, transformation, and side effects go in custom hooks or context providers.
 
-### 2. Deep widget nesting without extraction
-If `build()` has more than 3 levels of nesting, extract sub-widgets into `_build*` methods or separate widgets.
+### 2. Deep JSX nesting without extraction
+If JSX has more than 3 levels of nesting, extract into `render*` helper functions or separate components.
 
-### 3. Using `setState` for shared state
-`setState` is fine for widget-local ephemeral state (tab index, animation). For anything shared, use Riverpod providers.
+### 3. Using useState for shared state
+`useState` is fine for component-local ephemeral state (tab index, animation). For anything shared across components, use Context API or state management library.
 
-### 4. Hardcoding colors and text styles
-Always use `Theme.of(context)`. This ensures dark mode support and visual consistency.
+### 4. Hardcoding colors and spacing
+Always use Tailwind utility classes. This ensures dark mode support (via CSS variables) and visual consistency.
 
-### 5. Ignoring `const`
-Mark constructors and widget trees `const` wherever possible. It prevents unnecessary rebuilds.
+### 5. Missing TypeScript types
+Always define props interfaces. Use `React.FC` sparingly — prefer explicit function declarations with typed props.
+
+### 6. Ignoring memoization
+Use `React.memo()` for expensive components that receive stable props. Use `useMemo` and `useCallback` to prevent unnecessary re-renders.
