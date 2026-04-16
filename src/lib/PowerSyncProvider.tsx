@@ -11,6 +11,14 @@ export function PowerSyncProvider({ children }: PowerSyncProviderProps) {
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
+    // Skip PowerSync initialization if URL not configured
+    const powersyncUrl = import.meta.env.VITE_POWERSYNC_URL;
+    if (!powersyncUrl) {
+      console.warn('VITE_POWERSYNC_URL not configured, skipping PowerSync initialization');
+      setInitialized(true);
+      return;
+    }
+
     initPowerSync()
       .then(() => setInitialized(true))
       .catch((err) => {
@@ -27,6 +35,9 @@ export function PowerSyncProvider({ children }: PowerSyncProviderProps) {
             PowerSync Error
           </h2>
           <p className="text-red-700">{error.message}</p>
+          <p className="text-sm text-red-600 mt-2">
+            Check console for details
+          </p>
         </div>
       </div>
     );
