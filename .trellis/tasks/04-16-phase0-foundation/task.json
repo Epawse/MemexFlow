@@ -1,0 +1,48 @@
+{
+  "id": "phase0-foundation",
+  "name": "phase0-foundation",
+  "title": "Phase 0: Foundation - Project Scaffold & Data Layer",
+  "description": "Set up Tauri 2 + React/TS project, Supabase backend, PowerSync sync, Python worker, and auth flow",
+  "status": "planning",
+  "dev_type": "feature",
+  "scope": "full-stack",
+  "package": null,
+  "priority": "P0",
+  "creator": "haor",
+  "assignee": "haor",
+  "createdAt": "2026-04-16",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "current_phase": 0,
+  "next_action": [
+    {
+      "phase": 1,
+      "action": "implement"
+    },
+    {
+      "phase": 2,
+      "action": "check"
+    },
+    {
+      "phase": 3,
+      "action": "test"
+    },
+    {
+      "phase": 4,
+      "action": "record-session"
+    }
+  ],
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "memexflow-v1-planning",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "phase": "Phase 0",
+    "prd_reference": ".trellis/tasks/04-16-memexflow-v1-planning/prd.md#phase-0-foundation"
+  }
+}
