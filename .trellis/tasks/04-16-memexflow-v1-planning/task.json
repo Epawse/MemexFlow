@@ -45,9 +45,7 @@
   "commit": null,
   "pr_url": null,
   "subtasks": [],
-  "children": [
-    "04-17-phase1-capture-memory"
-  ],
+  "children": [],
   "parent": null,
   "relatedFiles": [],
   "notes": "",
