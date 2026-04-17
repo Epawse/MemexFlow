@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 3
+- **Total Sessions**: 4
 - **Last Active**: 2026-04-17
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~185 | Active |
+| `journal-1.md` | ~218 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 4 | 2026-04-17 | Phase 0 complete: mark task finished, create troubleshooting docs | `af2b812` | `main` |
 | 3 | 2026-04-17 | PowerSync setup + Phase 0 integration testing | `76ca544` | `main` |
 | 2 | 2026-04-17 | Phase 0: Fix critical bugs + UI component library | `3662212` | `main` |
 | 1 | 2026-04-16 | Bootstrap development guidelines for MemexFlow | `b214396` | `main` |
