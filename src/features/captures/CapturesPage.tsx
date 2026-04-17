@@ -71,7 +71,10 @@ export function CapturesPage() {
     }
   };
 
-  const handleRetry = async (captureId: string, capture: any) => {
+  const handleRetry = async (
+    captureId: string,
+    capture: { url: string | null },
+  ) => {
     if (!user) return;
     setRetryingId(captureId);
     try {
