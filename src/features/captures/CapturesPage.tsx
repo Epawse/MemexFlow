@@ -229,31 +229,6 @@ export function CapturesPage() {
         </Button>
       </div>
 
-      {import.meta.env.DEV && (
-        <div className="mt-3 text-xs text-gray-500 dark:text-gray-400 font-mono space-y-1">
-          <div>
-            debug · jobs loaded: {jobs.length} (
-            {jobs.filter((j: any) => j.status === "pending").length} pending,{" "}
-            {jobs.filter((j: any) => j.status === "processing").length}{" "}
-            processing,{" "}
-            {jobs.filter((j: any) => j.status === "failed").length} failed) ·
-            captures: {captures.length} · matched:{" "}
-            {captures.filter((c: any) => getCaptureJob(c.id) !== null).length}
-          </div>
-          {jobs[0] && (
-            <div className="break-all">
-              sample job[0].input ({typeof jobs[0].input}):{" "}
-              {typeof jobs[0].input === "string"
-                ? jobs[0].input.slice(0, 160)
-                : JSON.stringify(jobs[0].input).slice(0, 160)}
-            </div>
-          )}
-          {captures[0] && (
-            <div>sample capture[0].id: {captures[0].id}</div>
-          )}
-        </div>
-      )}
-
       {captures.length === 0 ? (
         <EmptyState
           className="mt-8"
