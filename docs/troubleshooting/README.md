@@ -11,12 +11,14 @@
 
 ## PowerSync
 
-| 文件                                                             | 问题                                  | 关键词                                    |
-| ---------------------------------------------------------------- | ------------------------------------- | ----------------------------------------- |
-| [powersync-setup.md](./powersync-setup.md)                       | PowerSync 云端配置完整指南            | 云实例, JWKS, Supabase 连接               |
-| [powersync-sync-rules.md](./powersync-sync-rules.md)             | Sync Streams 语法错误与正确写法       | `edition: 3`, `auth.user_id()`, `{param}` |
-| [powersync-worker-404.md](./powersync-worker-404.md)             | WASQLiteDB.worker.js 404 + 初始化卡住 | `useWebWorker`, `enableMultiTabs`, Tauri  |
-| [powersync-provider-context.md](./powersync-provider-context.md) | PowerSyncContext 类型不匹配           | `AbstractPowerSyncDatabase`, `null`       |
+| 文件                                                               | 问题                                                             | 关键词                                       |
+| ------------------------------------------------------------------ | ---------------------------------------------------------------- | -------------------------------------------- |
+| [powersync-setup.md](./powersync-setup.md)                         | PowerSync 云端配置完整指南                                       | 云实例, JWKS, Supabase 连接                  |
+| [powersync-sync-rules.md](./powersync-sync-rules.md)               | Sync Streams 语法错误与正确写法                                  | `edition: 3`, `auth.user_id()`, `{param}`    |
+| [powersync-worker-404.md](./powersync-worker-404.md)               | WASQLiteDB.worker.js 404 + 初始化卡住                            | `useWebWorker`, `enableMultiTabs`, Tauri     |
+| [powersync-provider-context.md](./powersync-provider-context.md)   | PowerSyncContext 类型不匹配                                      | `AbstractPowerSyncDatabase`, `null`          |
+| [powersync-offline-migration.md](./powersync-offline-migration.md) | 离线迁移踩坑：条件 Hooks、空数据 fallback、waitForFirstSync 阻塞 | `useDataQuery`, dual-path, Supabase fallback |
+| [powersync-aud-claim-error.md](./powersync-aud-claim-error.md)     | PSYNC_S2105: JWT aud claim "authenticated" 不被接受              | PowerSync Dashboard 配置 audience            |
 
 ## Supabase
 

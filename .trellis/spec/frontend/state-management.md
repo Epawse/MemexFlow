@@ -6,11 +6,12 @@
 
 ## Overview
 
-MemexFlow uses a **three-layer state management architecture**:
+MemexFlow uses a **local-first architecture** with PowerSync as the primary data layer:
 
-1. **React Query (TanStack Query)** — server state and cache
-2. **Zustand** — global client state
-3. **React Context API + useState** — component-scoped state
+1. **PowerSync** — local SQLite for reads (`useQuery`) and writes (`db.execute`), with automatic sync to Supabase
+2. **Supabase direct** — fallback when PowerSync is not configured (no `VITE_POWERSYNC_URL`)
+3. **React Context + useState** — component-scoped UI state
+4. **Zustand** — (reserved for future global client state)
 
 State is categorized into four types, each with clear guidelines for where it lives.
 
@@ -25,15 +26,13 @@ State is categorized into four types, each with clear guidelines for where it li
 **Examples**: tab index, form input values, animation state, expanded/collapsed toggle
 
 ```tsx
-// Fine for ephemeral state
 function CaptureForm() {
-  const [url, setUrl] = useState('');
+  const [url, setUrl] = useState("");
   const [isExpanded, setIsExpanded] = useState(false);
-  
+
   return (
     <form>
       <input value={url} onChange={(e) => setUrl(e.target.value)} />
-      {/* ... */}
     </form>
   );
 }
@@ -41,216 +40,143 @@ function CaptureForm() {
 
 ### 2. Feature state (scoped to a feature)
 
-**Where**: Zustand stores in `features/<name>/stores/`
+**Where**: Zustand stores in `features/<name>/stores/` (reserved, not yet used)
 
 **Examples**: filter settings, UI preferences, form state that needs to persist across component unmounts
 
-```tsx
-// features/candidates/stores/candidateFilterStore.ts
-import { create } from 'zustand';
-
-interface CandidateFilterState {
-  status: CandidateStatus | null;
-  channel: string | null;
-  setStatus: (status: CandidateStatus | null) => void;
-  setChannel: (channel: string | null) => void;
-}
-
-export const useCandidateFilterStore = create<CandidateFilterState>((set) => ({
-  status: null,
-  channel: null,
-  setStatus: (status) => set({ status }),
-  setChannel: (channel) => set({ channel }),
-}));
-
-// Usage in component
-function CandidateList() {
-  const { status, setStatus } = useCandidateFilterStore();
-  // ...
-}
-```
-
 ### 3. Server state (remote data)
 
-**Where**: React Query hooks with PowerSync for local-first sync
+**Where**: PowerSync `useQuery` hooks with Supabase fallback
 
-**Examples**: project data from Supabase, candidate list, memories, briefs
-
-**Pattern**: PowerSync syncs Supabase → local SQLite → React Query reads from local → UI updates
+**Pattern A: PowerSync available** — Read from local SQLite, writes via `db.execute`
 
 ```tsx
-// features/candidates/hooks/useCandidates.ts
-import { useQuery } from '@tanstack/react-query';
-import { usePowerSync } from '@powersync/react';
+import { useQuery, usePowerSync } from "@powersync/react";
 
-export function useCandidates(projectId: string) {
-  const powerSync = usePowerSync();
-  const { status, channel } = useCandidateFilterStore();
+// Reads — reactive, auto-updates when local SQLite changes
+const { data: projects } = useQuery(
+  "SELECT * FROM projects WHERE user_id = ? ORDER BY updated_at DESC",
+  [userId],
+);
 
-  return useQuery({
-    queryKey: ['candidates', projectId, status, channel],
-    queryFn: async () => {
-      // Read from local SQLite via PowerSync
-      let query = `
-        SELECT * FROM candidates 
-        WHERE project_id = ?
-      `;
-      const params = [projectId];
-
-      if (status) {
-        query += ` AND status = ?`;
-        params.push(status);
-      }
-
-      query += ` ORDER BY ingested_at DESC`;
-
-      const result = await powerSync.execute(query, params);
-      return result.rows?._array || [];
-    },
-    // Data is always available from local SQLite
-    staleTime: 0,
-  });
-}
-```
-
-### 4. Local-persistent state (survives app restart)
-
-**Where**: Zustand with persist middleware + PowerSync for synced data
-
-**Examples**: user preferences, UI settings, offline-cached data
-
-```tsx
-// core/stores/preferencesStore.ts
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-
-interface PreferencesState {
-  theme: 'light' | 'dark';
-  sidebarCollapsed: boolean;
-  setTheme: (theme: 'light' | 'dark') => void;
-  toggleSidebar: () => void;
-}
-
-export const usePreferencesStore = create<PreferencesState>()(
-  persist(
-    (set) => ({
-      theme: 'dark',
-      sidebarCollapsed: false,
-      setTheme: (theme) => set({ theme }),
-      toggleSidebar: () => set((state) => ({ 
-        sidebarCollapsed: !state.sidebarCollapsed 
-      })),
-    }),
-    {
-      name: 'memexflow-preferences', // IndexedDB key
-    }
-  )
+// Writes — local-first, queued for upload
+const db = usePowerSync();
+await db.execute(
+  "INSERT INTO projects (id, user_id, title, color) VALUES (?, ?, ?, ?)",
+  [crypto.randomUUID(), userId, title, color],
 );
 ```
 
----
+**Pattern B: PowerSync unavailable** — Fall back to direct Supabase
 
-## When to Use Global State
+```tsx
+import { getPowerSyncDb } from '../lib/powersync';
+import { supabase } from '../lib/supabase';
 
-Promote state to a "global" (app-wide) Zustand store only when:
+const db = getPowerSyncDb();
 
-1. **Multiple features need it** — e.g., current user, auth state, app config
-2. **It's infrastructure** — Supabase client, PowerSync instance, theme mode
-3. **It persists across navigation** — filter settings, UI preferences
-
-If only one feature uses it, keep it scoped to that feature's `stores/` directory.
-
-### App-wide stores (in `core/`)
-
-```
-core/
-├── stores/
-│   ├── authStore.ts              → useAuthStore
-│   ├── preferencesStore.ts       → usePreferencesStore
-│   └── appConfigStore.ts         → useAppConfigStore
-└── providers/
-    ├── PowerSyncProvider.tsx     → PowerSync context
-    └── QueryProvider.tsx         → React Query context
+if (db) {
+  // PowerSync path
+  const { data } = useQuery('SELECT * FROM projects WHERE user_id = ?', [userId]);
+  // Writes
+  await db.execute('INSERT INTO projects ...', [params]);
+} else {
+  // Supabase direct path
+  const { data } = await supabase.from('projects').select('*').eq('user_id', userId);
+  // Writes
+  await supabase.from('projects').insert({ ... });
+}
 ```
 
+**Convenience hooks**: `usePowerSyncQueries.ts` provides `useProjects()`, `useCaptures()`, etc. These handle the PowerSync-or-Supabase fallback internally.
+
+### 4. Local-persistent state (survives app restart)
+
+**Where**: Zustand with persist middleware (reserved for future use)
+
+**Examples**: user preferences, UI settings
+
 ---
 
-## Server State Sync Strategy
+## Data Flow Architecture
 
 ### Local-first with PowerSync
 
-MemexFlow uses **PowerSync** to sync Supabase (Postgres) ↔ local SQLite bidirectionally.
-
-1. **PowerSync syncs in background** — Postgres changes → local SQLite
-2. **React Query reads from local SQLite** — instant display, no network latency
-3. **Writes go to Supabase** — PowerSync detects changes and syncs back to local
-4. **UI reacts** via React Query's automatic refetch on window focus / reconnect
-
 ```
-User action → Write to Supabase → PowerSync syncs to local SQLite → React Query refetches → UI updates
+User action
+    ↓
+Frontend: db.execute('INSERT INTO captures ...')
+    ↓ (instant, local SQLite)
+PowerSync: detects local change → queues for upload
+    ↓ (when online)
+PowerSync connector: uploadData() → Supabase INSERT/UPDATE/DELETE
+    ↓ (when online)
+PowerSync: sync stream → local SQLite updated from Postgres
+    ↓ (reactive)
+useQuery hook: UI re-renders automatically
 ```
 
-### Data flow pattern
+### Offline behavior
+
+1. **Offline write**: User pastes URL → `db.execute('INSERT INTO captures ...')` succeeds locally
+2. **PowerSync queues**: The write is queued in local SQLite's oplog
+3. **On reconnect**: `uploadData()` pushes queued writes to Supabase
+4. **Worker picks up**: Python worker polls Supabase `jobs` table → processes ingestion/extraction
+5. **Result syncs back**: PowerSync stream updates local SQLite with new memories
+
+### Shared utility pattern
+
+Capture + Job creation uses a shared utility (`src/lib/captures.ts`) that handles both PowerSync and Supabase paths:
 
 ```tsx
-// Write mutation
-const createMemory = useMutation({
-  mutationFn: async (data: CreateMemoryInput) => {
-    // Write to Supabase (PowerSync will sync to local automatically)
-    const { data: memory, error } = await supabase
-      .from('memories')
-      .insert(data)
-      .select()
-      .single();
-    
-    if (error) throw error;
-    return memory;
-  },
-  onSuccess: () => {
-    // Invalidate React Query cache to trigger refetch from local SQLite
-    queryClient.invalidateQueries({ queryKey: ['memories'] });
-  },
-});
+export async function createCapture({ userId, url, projectId }: CreateCaptureParams) {
+  const db = getPowerSyncDb();
+  const captureId = crypto.randomUUID();
 
-// Read query (from local SQLite via PowerSync)
-const { data: memories } = useQuery({
-  queryKey: ['memories', projectId],
-  queryFn: async () => {
-    const result = await powerSync.execute(
-      'SELECT * FROM memories WHERE project_id = ? ORDER BY created_at DESC',
-      [projectId]
-    );
-    return result.rows?._array || [];
-  },
-});
+  if (db) {
+    // PowerSync path — local-first
+    await db.execute('INSERT INTO captures (id, user_id, project_id, type, title, url) VALUES (?, ?, ?, ?, ?, ?)',
+      [captureId, userId, projectId || null, 'url', url, url]);
+    await db.execute('INSERT INTO jobs (id, user_id, type, status, input) VALUES (?, ?, ?, ?, ?)',
+      [crypto.randomUUID(), userId, 'ingestion', 'pending', JSON.stringify({ capture_id: captureId, url, user_id: userId })]);
+  } else {
+    // Supabase fallback
+    await (supabase.from('captures') as any).insert({ ... });
+    await (supabase.from('jobs') as any).insert({ ... });
+  }
+  return captureId;
+}
 ```
 
-### Conflict resolution
+### Sync status indicator
 
-For MVP, use **last-write-wins**. The Supabase server is the source of truth. PowerSync handles conflict resolution automatically:
+```tsx
+import { useStatus } from "@powersync/react";
 
-- Local changes that fail to sync are retried with exponential backoff
-- Conflicts are resolved server-side (last write wins)
-- PowerSync syncs the resolved state back to local SQLite
+function SyncStatusIndicator() {
+  const status = useStatus();
+  // status.connected — whether PowerSync is connected
+  // status.hasSynced — whether initial sync completed
+  // status.dataFlowStatus.uploading — currently uploading local changes
+  // status.dataFlowStatus.downloading — currently downloading remote changes
+}
+```
 
 ---
 
 ## State Location Decision Tree
 
-Use this to decide where state should live:
-
 ```
 Is it server data (from Supabase)?
-├─ YES → React Query + PowerSync
-│         (useCandidates, useMemories, useProjects)
+├─ YES → PowerSync useQuery + db.execute (with Supabase fallback)
+│         (useProjects, useCaptures, useMemories, createCapture)
 │
 └─ NO → Is it used by multiple features?
         ├─ YES → Zustand store in core/stores/
-        │         (useAuthStore, usePreferencesStore)
+        │         (reserved for auth, preferences)
         │
         └─ NO → Is it used by multiple components in one feature?
                 ├─ YES → Zustand store in features/<name>/stores/
-                │         (useCandidateFilterStore)
                 │
                 └─ NO → Does it need to persist across unmounts?
                         ├─ YES → Zustand with persist middleware
@@ -263,17 +189,120 @@ Is it server data (from Supabase)?
 ## Common Mistakes
 
 ### 1. Storing server data in component state
+
+Never fetch data in `useEffect` and store in `useState`. Use PowerSync `useQuery` hooks so data is shared, cached, and reactive.
+
+```tsx
+// ❌ BAD: Fetching in useEffect + useState
+function ProjectList() {
+  const [projects, setProjects] = useState([]);
+
+  useEffect(() => {
+    supabase
+      .from("projects")
+      .select()
+      .then(({ data }) => setProjects(data));
+  }, []);
+
+  return <div>{/* ... */}</div>;
+}
+
+// ✅ GOOD: Using PowerSync useQuery (reactive, local-first)
+function ProjectList() {
+  const { data: projects } = useProjects(userId);
+  return <div>{/* ... */}</div>;
+}
+```
+
+### 2. Writing directly to Supabase when PowerSync is available
+
+Always use PowerSync `db.execute()` for writes so offline writes are queued and synced. Only fall back to Supabase direct when PowerSync is not configured.
+
+```tsx
+// ❌ BAD: Direct Supabase write (bypasses offline queue)
+await supabase.from("projects").insert({ title: "New Project" });
+
+// ✅ GOOD: PowerSync write (queued for offline, auto-synced)
+const db = usePowerSync();
+await db.execute("INSERT INTO projects (id, title, user_id) VALUES (?, ?, ?)", [
+  crypto.randomUUID(),
+  "New Project",
+  userId,
+]);
+```
+
+### 3. Not handling PowerSync fallback
+
+Some users may not have `VITE_POWERSYNC_URL` configured. Always check `getPowerSyncDb()` and fall back to Supabase direct.
+
+```tsx
+// ✅ GOOD: Dual path in shared utilities
+import { getPowerSyncDb } from "../lib/powersync";
+import { supabase } from "../lib/supabase";
+
+export async function createProject(title: string, userId: string) {
+  const id = crypto.randomUUID();
+  const db = getPowerSyncDb();
+
+  if (db) {
+    await db.execute("INSERT INTO projects ...", [id, userId, title]);
+  } else {
+    await supabase.from("projects").insert({ id, user_id: userId, title });
+  }
+  return id;
+}
+```
+
+### 4. Mixing presentation and data logic in stores
+
+Stores manage state. They don't navigate, show toasts, or format strings for display. Keep that in components.
+
+### 5. Not separating local vs remote data sources
+
+Always have a clear boundary: PowerSync `useQuery`/`db.execute` for server data (with Supabase fallback), `useState` for client state. Don't mix both in a single hook.
+
+### 6. Using global state for simple component state
+
+For ephemeral UI state (form inputs, toggles), use `useState`. Don't create Zustand stores for component-local state.
+Is it server data (from Supabase)?
+├─ YES → React Query + PowerSync
+│ (useCandidates, useMemories, useProjects)
+│
+└─ NO → Is it used by multiple features?
+├─ YES → Zustand store in core/stores/
+│ (useAuthStore, usePreferencesStore)
+│
+└─ NO → Is it used by multiple components in one feature?
+├─ YES → Zustand store in features/<name>/stores/
+│ (useCandidateFilterStore)
+│
+└─ NO → Does it need to persist across unmounts?
+├─ YES → Zustand with persist middleware
+│
+└─ NO → Component useState/useReducer
+
+````
+
+---
+
+## Common Mistakes
+
+### 1. Storing server data in component state
+
 Never fetch data in `useEffect` and store in `useState`. Use React Query so data is shared, cached, and reactive across components.
 
 ```tsx
 // ❌ BAD: Fetching in useEffect
 function ProjectList() {
   const [projects, setProjects] = useState([]);
-  
+
   useEffect(() => {
-    supabase.from('projects').select().then(({ data }) => setProjects(data));
+    supabase
+      .from("projects")
+      .select()
+      .then(({ data }) => setProjects(data));
   }, []);
-  
+
   return <div>{/* ... */}</div>;
 }
 
@@ -282,15 +311,22 @@ function ProjectList() {
   const { data: projects } = useProjects();
   return <div>{/* ... */}</div>;
 }
-```
+````
 
 ### 2. Creating too many Zustand stores
+
 Don't create a separate store for every single piece of state. Group related state into a single store when they change together.
 
 ```tsx
 // ❌ BAD: Too granular
-const useStatusStore = create((set) => ({ status: null, setStatus: (s) => set({ status: s }) }));
-const useChannelStore = create((set) => ({ channel: null, setChannel: (c) => set({ channel: c }) }));
+const useStatusStore = create((set) => ({
+  status: null,
+  setStatus: (s) => set({ status: s }),
+}));
+const useChannelStore = create((set) => ({
+  channel: null,
+  setChannel: (c) => set({ channel: c }),
+}));
 
 // ✅ GOOD: Grouped related state
 const useFilterStore = create((set) => ({
@@ -302,6 +338,7 @@ const useFilterStore = create((set) => ({
 ```
 
 ### 3. Mixing presentation and data logic in stores
+
 Stores manage state. They don't navigate, show toasts, or format strings for display. Keep that in components.
 
 ```tsx
@@ -309,7 +346,7 @@ Stores manage state. They don't navigate, show toasts, or format strings for dis
 const useAuthStore = create((set) => ({
   logout: () => {
     set({ user: null });
-    router.push('/login'); // Don't do this
+    router.push("/login"); // Don't do this
   },
 }));
 
@@ -317,17 +354,18 @@ const useAuthStore = create((set) => ({
 function LogoutButton() {
   const logout = useAuthStore((state) => state.logout);
   const navigate = useNavigate();
-  
+
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate("/login");
   };
-  
+
   return <button onClick={handleLogout}>Logout</button>;
 }
 ```
 
 ### 4. Not separating local vs remote data sources
+
 Always have a clear boundary: React Query for server data (via PowerSync), Zustand for client state. Don't mix both in a single hook.
 
 ```tsx
@@ -336,7 +374,7 @@ const useProjectState = create((set) => ({
   projects: [], // Server data
   selectedId: null, // Client state
   fetchProjects: async () => {
-    const data = await supabase.from('projects').select();
+    const data = await supabase.from("projects").select();
     set({ projects: data });
   },
 }));
@@ -347,6 +385,7 @@ const selectedId = useProjectStore((state) => state.selectedId); // Zustand for 
 ```
 
 ### 5. Using Zustand for simple component state
+
 Zustand is for shared or persistent state. For ephemeral UI state (form inputs, toggles), use `useState`.
 
 ```tsx
@@ -364,6 +403,7 @@ function CollapsiblePanel() {
 ```
 
 ### 6. Not using Zustand selectors
+
 Always use selectors to avoid unnecessary re-renders. Only subscribe to the state you need.
 
 ```tsx
