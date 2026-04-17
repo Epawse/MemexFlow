@@ -1,6 +1,7 @@
 """AI Worker - polls Supabase jobs table and processes jobs."""
 
 import asyncio
+import json
 import os
 import signal
 from typing import Any
@@ -87,6 +88,11 @@ async def process_job(job: dict) -> None:
     job_id = job["id"]
     job_type = job["type"]
     input_data = job.get("input", {})
+    if isinstance(input_data, str):
+        try:
+            input_data = json.loads(input_data)
+        except (json.JSONDecodeError, TypeError):
+            input_data = {}
 
     handler_name = TYPE_MAP.get(job_type)
     if not handler_name:
