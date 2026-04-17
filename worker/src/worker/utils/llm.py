@@ -9,6 +9,7 @@ import json
 import os
 import httpx
 from sentence_transformers import SentenceTransformer
+from .logging import logger
 
 GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 
