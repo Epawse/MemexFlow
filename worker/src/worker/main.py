@@ -16,7 +16,7 @@ from .utils.supabase import get_supabase
 TYPE_MAP = {
     "ingestion": "ingestion",
     "extraction": "extraction",
-    "embed": "extraction",
+    "embed": "ingestion",
     "briefing": "briefing",
     "brief": "briefing",
     "signal": "extraction",
