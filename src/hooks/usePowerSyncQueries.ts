@@ -131,15 +131,17 @@ export function useProjectMemories(projectId: string) {
 export function usePendingJobs(userId: string) {
   const supabaseQuery = useCallback(async () => {
     const { data, error } = await (supabase.from("jobs") as any)
-      .select("id, type, status, input")
+      .select("id, type, status, input, error")
       .eq("user_id", userId)
-      .in("status", ["pending", "processing"]);
+      .in("status", ["pending", "processing", "failed"])
+      .order("created_at", { ascending: false })
+      .limit(200);
     if (error) throw error;
     return data ?? [];
   }, [userId]);
 
   return useDataQuery(
-    "SELECT * FROM jobs WHERE user_id = ? AND status IN ('pending', 'processing') ORDER BY created_at DESC",
+    "SELECT * FROM jobs WHERE user_id = ? AND status IN ('pending', 'processing', 'failed') ORDER BY created_at DESC LIMIT 200",
     [userId],
     supabaseQuery,
     [userId],
@@ -151,6 +153,36 @@ export function usePendingJobs(userId: string) {
 // ---------------------------------------------------------------------------
 
 export function useDashboardStats(userId: string) {
+  const db = getPowerSyncDb();
+
+  // PowerSync path: reactive useQuery on each table. Safe to call
+  // unconditionally — when db is null, useQuery no-ops inside the provider.
+  const capturesCount = useQuery(
+    "SELECT count(*) as count FROM captures WHERE user_id = ?",
+    [userId],
+  );
+  const memoriesCount = useQuery(
+    "SELECT count(*) as count FROM memories WHERE user_id = ?",
+    [userId],
+  );
+  const projectsCount = useQuery(
+    "SELECT count(*) as count FROM projects WHERE user_id = ? AND archived = 0",
+    [userId],
+  );
+  const briefsCount = useQuery(
+    "SELECT count(*) as count FROM briefs WHERE user_id = ?",
+    [userId],
+  );
+
+  // Supabase fallback (used when PowerSync is not configured)
+  const [fallbackStats, setFallbackStats] = useState({
+    captures: 0,
+    memories: 0,
+    projects: 0,
+    briefs: 0,
+  });
+  const [fallbackLoading, setFallbackLoading] = useState(true);
+
   const fetchCount = useCallback(
     async (table: string) => {
       const { count, error } = await (supabase.from(table) as any)
@@ -162,68 +194,40 @@ export function useDashboardStats(userId: string) {
     [userId],
   );
 
-  const [stats, setStats] = useState({
-    captures: 0,
-    memories: 0,
-    projects: 0,
-    briefs: 0,
-  });
-  const [isLoading, setIsLoading] = useState(true);
-
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || db) return;
+    Promise.all([
+      fetchCount("captures"),
+      fetchCount("memories"),
+      fetchCount("projects"),
+      fetchCount("briefs"),
+    ])
+      .then(([captures, memories, projects, briefs]) => {
+        setFallbackStats({ captures, memories, projects, briefs });
+        setFallbackLoading(false);
+      })
+      .catch(() => setFallbackLoading(false));
+  }, [userId, db, fetchCount]);
 
-    const db = getPowerSyncDb();
-    if (db) {
-      // PowerSync path — use reactive queries
-      const updateStats = async () => {
-        try {
-          const [c, m, p, b] = await Promise.all([
-            db.getAll<{ count: number }>(
-              "SELECT count(*) as count FROM captures WHERE user_id = ?",
-              [userId],
-            ),
-            db.getAll<{ count: number }>(
-              "SELECT count(*) as count FROM memories WHERE user_id = ?",
-              [userId],
-            ),
-            db.getAll<{ count: number }>(
-              "SELECT count(*) as count FROM projects WHERE user_id = ?",
-              [userId],
-            ),
-            db.getAll<{ count: number }>(
-              "SELECT count(*) as count FROM briefs WHERE user_id = ?",
-              [userId],
-            ),
-          ]);
-          setStats({
-            captures: Number(c[0]?.count ?? 0),
-            memories: Number(m[0]?.count ?? 0),
-            projects: Number(p[0]?.count ?? 0),
-            briefs: Number(b[0]?.count ?? 0),
-          });
-        } catch {
-          // Fall through to Supabase
-        }
-        setIsLoading(false);
-      };
-      updateStats();
-    } else {
-      // Supabase fallback
-      Promise.all([
-        fetchCount("captures"),
-        fetchCount("memories"),
-        fetchCount("projects"),
-        fetchCount("briefs"),
-      ]).then(([captures, memories, projects, briefs]) => {
-        setStats({ captures, memories, projects, briefs });
-        setIsLoading(false);
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
+  if (db) {
+    const readCount = (result: { data: unknown }): number => {
+      const rows = (result.data ?? []) as Array<{ count: number | string }>;
+      return Number(rows[0]?.count ?? 0);
+    };
+    return {
+      captures: readCount(capturesCount),
+      memories: readCount(memoriesCount),
+      projects: readCount(projectsCount),
+      briefs: readCount(briefsCount),
+      isLoading:
+        capturesCount.isLoading ||
+        memoriesCount.isLoading ||
+        projectsCount.isLoading ||
+        briefsCount.isLoading,
+    };
+  }
 
-  return { ...stats, isLoading };
+  return { ...fallbackStats, isLoading: fallbackLoading };
 }
 
 // ---------------------------------------------------------------------------
@@ -422,6 +426,8 @@ function useDataQuery<T extends Record<string, unknown>>(
   return {
     data: hasPsData ? psData! : fallbackData,
     isLoading: hasPsData ? psResult.isLoading : fallbackLoading,
-    error,
+    // Suppress fallback error once PowerSync is serving data — the error was
+    // from a stale Supabase attempt while PS was still hydrating.
+    error: hasPsData ? null : error,
   };
 }
