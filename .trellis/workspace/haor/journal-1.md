@@ -412,3 +412,62 @@ Finished Phase 1 final two steps (offline sync migration + UI polish) plus five 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 9: Phase 1 Follow-ups: ESLint, Tests, Row Types, Migration
+
+**Date**: 2026-04-18
+**Task**: Phase 1 Follow-ups: ESLint, Tests, Row Types, Migration
+**Branch**: `main`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| Item | What |
+|------|------|
+| ESLint flat config | `eslint.config.js` (ESLint 10 + typescript-eslint + react-hooks); `npm run lint`/`lint:fix`/`type-check`/`test`/`test:watch` wired in `package.json` |
+| normalizeUrl tests | Exported from `captures.ts`; 9 Vitest cases (valid URL, no-scheme, whitespace, port, empty, numeric, no-TLD, no-hostname) |
+| Shared Row types | `src/lib/models.ts` — `Project`/`Capture`/`Memory`/`Brief`/`Signal`/`Job` aliases over `Database` type; all `(rows as any[])` + `(x: any)` map-callback casts removed from 5 feature pages and the hooks file |
+| jobs.input cleanup migration | `20260418000000_cleanup_jobs_input_double_encoded.sql` — idempotent UPDATE with rollback comment |
+
+**Verification**: `tsc --noEmit --strict` clean · `npm run test` 9/9 · `npm run lint` 0 errors / 31 warnings (pre-existing supabase `as any` + aspirational react-hooks rules)
+
+**Check fix**: Added missing rollback comment to migration per `backend/database-guidelines.md` spec
+
+**Updated Files**:
+- `eslint.config.js` (new)
+- `vitest.config.ts` (new)
+- `src/lib/models.ts` (new)
+- `src/lib/captures.test.ts` (new)
+- `src/lib/captures.ts` (export normalizeUrl)
+- `src/hooks/usePowerSyncQueries.ts` (typed hooks via generics)
+- `src/features/captures/CapturesPage.tsx` (drop any casts)
+- `src/features/memories/MemoriesPage.tsx` (drop any casts)
+- `src/features/dashboard/DashboardPage.tsx` (drop any casts)
+- `src/features/projects/ProjectsPage.tsx` (drop any casts)
+- `src/features/projects/ProjectDetailPage.tsx` (drop any casts)
+- `supabase/migrations/20260418000000_cleanup_jobs_input_double_encoded.sql` (new)
+- `package.json` (scripts + devDeps)
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8463003` | (see git log) |
+| `51cb5fa` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

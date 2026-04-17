@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 8
+- **Total Sessions**: 9
 - **Last Active**: 2026-04-18
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~414 | Active |
+| `journal-1.md` | ~473 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 9 | 2026-04-18 | Phase 1 Follow-ups: ESLint, Tests, Row Types, Migration | `8463003`, `51cb5fa` | `main` |
 | 8 | 2026-04-18 | Phase 1 Step 5+6: PowerSync offline migration + UI polish + jsonb double-encoding fix | `1911ad9`, `c813d7a`, `698b810`, `96b52b2`, `aeb93c2`, `a2da20d`, `f276acf`, `479926b`, `17493c5`, `8047830`, `dec05ac` | `main` |
 | 7 | 2026-04-17 | Phase 1 Step 5: PowerSync offline migration + bug fixes + PSYNC_S2105 fix | - | `main` |
 | 6 | 2026-04-17 | Phase 1: worker pipeline end-to-end verified | `9e11c80` | `main` |
