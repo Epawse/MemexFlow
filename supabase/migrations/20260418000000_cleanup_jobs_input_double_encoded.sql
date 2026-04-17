@@ -14,3 +14,7 @@
 UPDATE public.jobs
 SET input = (input #>> '{}')::jsonb
 WHERE jsonb_typeof(input) = 'string';
+
+-- Rollback:
+-- No automatic rollback — the original double-encoded values are lost
+-- after this UPDATE. Restore from a pre-migration backup if needed.
