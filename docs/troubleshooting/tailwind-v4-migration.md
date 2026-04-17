@@ -1,4 +1,4 @@
-# Tailwind CSS v4 语法迁移
+# Tailwind CSS v4 踩坑记录
 
 ## 问题 1: `@tailwind` 指令不识别
 
@@ -44,11 +44,9 @@ Tailwind v4 移除了 `@tailwind base/components/utilities` 指令，改为 `@im
 }
 ```
 
-Tailwind v4 的 `@apply` 在某些上下文中不能引用尚未注册的 utility。
-
 ### 解决
 
-直接在 HTML/组件中使用 Tailwind 类代替 `@layer base @apply`，或者改用原生 CSS：
+用原生 CSS 变量代替：
 
 ```css
 @layer base {
@@ -67,14 +65,62 @@ Tailwind v4 的 `@apply` 在某些上下文中不能引用尚未注册的 utilit
 
 ---
 
-## 问题 3: 自定义颜色 token 格式变更
+## 问题 3: 自定义颜色类完全不显示（按钮不可见）⚠️ 最关键
+
+### 症状
+
+使用 `bg-primary-600`、`text-primary-500` 的按钮或元素**完全不可见**——白色背景上白色文字，透明背景。但点击区域存在，功能正常。
 
 ### 原因
 
-Tailwind v4 的 `tailwind.config.js` 中颜色定义变化不大，但注意 v4 已经内置了更丰富的色板。
+**Tailwind v4 不再从 `tailwind.config.js` 读取自定义颜色定义。**
 
-### 经验
+v3 写法（v4 中不生效）：
 
-- `primary`、`secondary` 等自定义色仍然在 `theme.extend.colors` 中定义
-- v4 内置了 `surface`、`success`、`warning`、`danger` 等语义色（如果没冲突可以直接用内置的）
-- Dark mode 用 `.dark` 类（v4 默认策略）或 `@media (prefers-color-scheme: dark)`
+```js
+// tailwind.config.js — v4 中这些颜色不会被使用！
+module.exports = {
+  theme: {
+    extend: {
+      colors: {
+        primary: { 600: "#7C3AED", 700: "#6D28D9" },
+      },
+    },
+  },
+};
+```
+
+Tailwind v4 使用 CSS `@theme` 指令代替 JS 配置来定义设计 token。`tailwind.config.js` 里的自定义颜色被静默忽略。
+
+### 解决
+
+在 `src/index.css` 中用 `@theme` 声明颜色：
+
+```css
+@import "tailwindcss";
+
+@theme {
+  --color-primary-600: #7c3aed;
+  --color-primary-700: #6d28d9;
+  --color-primary-500: #8b5cf6;
+  --color-primary: #6750a4;
+  /* ... 其他色阶 */
+}
+```
+
+之后 `bg-primary-600`、`text-primary-700` 等类名即刻生效。
+
+### 关键规则对照
+
+| Tailwind v3                                  | Tailwind v4                     |
+| -------------------------------------------- | ------------------------------- |
+| `tailwind.config.js` → `theme.extend.colors` | `index.css` → `@theme { }`      |
+| `primary: { 600: '#7C3AED' }`                | `--color-primary-600: #7C3AED;` |
+| JS 对象嵌套                                  | CSS 变量连字符命名              |
+| `@tailwind base;`                            | `@import "tailwindcss";`        |
+
+### 注意
+
+- 内置颜色（`gray`、`blue`、`red` 等）仍可用
+- 只有自定义命名的颜色（如 `primary`、`surface`、`success`）需要移到 `@theme`
+- `tailwind.config.js` 可以保留用于其他配置（content paths、plugins 等），只是颜色主题不再从中读取
