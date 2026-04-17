@@ -87,6 +87,14 @@ Return JSON with keys: title, content, summary (1-2 sentence summary)"""
     summary = result.get("summary", "")
 
     if capture_id:
+        capture_result = (supabase.table("captures")
+                         .select("project_id")
+                         .eq("id", capture_id)
+                         .execute())
+        capture_project_id = ""
+        if capture_result.data:
+            capture_project_id = capture_result.data[0].get("project_id") or ""
+
         (supabase.table("captures")
          .update({
              "title": title,
@@ -106,6 +114,7 @@ Return JSON with keys: title, content, summary (1-2 sentence summary)"""
                  "content": content[:8000],
                  "capture_id": capture_id,
                  "user_id": input_data.get("user_id", ""),
+                 "project_id": capture_project_id,
              }),
          })
          .execute())
