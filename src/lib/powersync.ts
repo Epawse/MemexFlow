@@ -1,7 +1,9 @@
-import { column, Schema, Table } from "@powersync/common";
 import {
+  column,
   CrudBatch,
   PowerSyncBackendConnector,
+  Schema,
+  Table,
   type AbstractPowerSyncDatabase,
 } from "@powersync/common";
 import { PowerSyncDatabase } from "@powersync/web";
@@ -211,6 +213,9 @@ export function getPowerSyncDb(): PowerSyncDatabase | null {
         dbFilename: "memexflow.db",
       },
       schema: AppSchema,
+      sync: {
+        worker: "/WASQLiteDB.worker.js",
+      },
     });
   }
 
