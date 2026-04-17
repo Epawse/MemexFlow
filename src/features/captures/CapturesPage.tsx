@@ -3,8 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "../../lib/AuthProvider";
 import { useCaptures, usePendingJobs } from "../../hooks/usePowerSyncQueries";
-import { createCapture } from "../../lib/captures";
-import { supabase } from "../../lib/supabase";
+import { createCapture, createIngestionJob } from "../../lib/captures";
 import { Button } from "../../shared/components/Button";
 import { Card } from "../../shared/components/Card";
 import { EmptyState } from "../../shared/components/EmptyState";
@@ -76,19 +75,32 @@ export function CapturesPage() {
     capture: { url: string | null },
   ) => {
     if (!user) return;
+
+    // Guard against double-click / retry while another attempt is already
+    // queued. Matching the newest job for this capture is enough — if it
+    // isn't failed we shouldn't be inserting a new one.
+    const existing = getCaptureJob(captureId);
+    if (
+      existing &&
+      (existing.status === "pending" || existing.status === "processing")
+    ) {
+      toast.info("Already queued", {
+        description: "This capture is already being processed.",
+      });
+      return;
+    }
+    if (!capture.url) {
+      toast.error("Cannot retry", { description: "Capture has no URL." });
+      return;
+    }
+
     setRetryingId(captureId);
     try {
-      const { error } = await (supabase.from("jobs") as any).insert({
-        user_id: user.id,
-        type: "ingestion",
-        status: "pending",
-        input: {
-          capture_id: captureId,
-          url: capture.url,
-          user_id: user.id,
-        },
+      await createIngestionJob({
+        userId: user.id,
+        captureId,
+        url: capture.url,
       });
-      if (error) throw error;
       toast.success("Retry queued", {
         description: "The capture will be re-processed.",
       });

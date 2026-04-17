@@ -7,6 +7,12 @@ interface CreateCaptureParams {
   projectId?: string | null;
 }
 
+interface CreateIngestionJobParams {
+  userId: string;
+  captureId: string;
+  url: string;
+}
+
 function normalizeUrl(raw: string): string {
   const trimmed = raw.trim();
   if (!trimmed) throw new Error("URL is required");
@@ -33,6 +39,46 @@ function normalizeUrl(raw: string): string {
   return parsed.toString();
 }
 
+/**
+ * Queue an ingestion job for a capture. Local-first via PowerSync when
+ * available, otherwise goes straight to Supabase. Used by the initial
+ * capture flow and by the retry action on failed captures.
+ */
+export async function createIngestionJob({
+  userId,
+  captureId,
+  url,
+}: CreateIngestionJobParams) {
+  const db = getPowerSyncDb();
+  const jobId = crypto.randomUUID();
+  const now = new Date().toISOString();
+
+  if (db) {
+    await db.execute(
+      "INSERT INTO jobs (id, user_id, type, status, input, output, error, created_at, updated_at) VALUES (?, ?, ?, ?, ?, '', '', ?, ?)",
+      [
+        jobId,
+        userId,
+        "ingestion",
+        "pending",
+        JSON.stringify({ capture_id: captureId, url, user_id: userId }),
+        now,
+        now,
+      ],
+    );
+  } else {
+    // jobs.input is jsonb — pass object directly so Postgres stores it
+    // as a jsonb object rather than a jsonb string.
+    const { error } = await (supabase.from("jobs") as any).insert({
+      user_id: userId,
+      type: "ingestion",
+      status: "pending",
+      input: { capture_id: captureId, url, user_id: userId },
+    });
+    if (error) throw error;
+  }
+}
+
 export async function createCapture({
   userId,
   url,
@@ -40,7 +86,6 @@ export async function createCapture({
 }: CreateCaptureParams) {
   const normalizedUrl = normalizeUrl(url);
   const captureId = crypto.randomUUID();
-  const jobId = crypto.randomUUID();
   const db = getPowerSyncDb();
   const now = new Date().toISOString();
 
@@ -58,22 +103,6 @@ export async function createCapture({
         now,
       ],
     );
-    await db.execute(
-      "INSERT INTO jobs (id, user_id, type, status, input, output, error, created_at, updated_at) VALUES (?, ?, ?, ?, ?, '', '', ?, ?)",
-      [
-        jobId,
-        userId,
-        "ingestion",
-        "pending",
-        JSON.stringify({
-          capture_id: captureId,
-          url: normalizedUrl,
-          user_id: userId,
-        }),
-        now,
-        now,
-      ],
-    );
   } else {
     const { error: captureError } = await (
       supabase.from("captures") as any
@@ -86,21 +115,8 @@ export async function createCapture({
       url: normalizedUrl,
     });
     if (captureError) throw captureError;
-
-    // jobs.input is jsonb — pass the object directly, NOT a stringified
-    // copy. Stringifying would make Postgres store it as a jsonb string
-    // instead of a jsonb object, breaking downstream readers.
-    await (supabase.from("jobs") as any).insert({
-      user_id: userId,
-      type: "ingestion",
-      status: "pending",
-      input: {
-        capture_id: captureId,
-        url: normalizedUrl,
-        user_id: userId,
-      },
-    });
   }
 
+  await createIngestionJob({ userId, captureId, url: normalizedUrl });
   return captureId;
 }
