@@ -213,6 +213,10 @@ export function getPowerSyncDb(): PowerSyncDatabase | null {
         dbFilename: "memexflow.db",
       },
       schema: AppSchema,
+      flags: {
+        enableMultiTabs: false,
+        useWebWorker: false,
+      },
       sync: {
         worker: "/WASQLiteDB.worker.js",
       },

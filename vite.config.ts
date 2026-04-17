@@ -13,7 +13,7 @@ export default defineConfig({
   },
 
   optimizeDeps: {
-    include: ["@powersync/web", "@powersync/common", "@journeyapps/wa-sqlite"],
+    exclude: ["@powersync/web", "@powersync/common"],
   },
 
   // Vite options tailored for Tauri development
