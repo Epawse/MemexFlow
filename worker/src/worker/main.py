@@ -94,6 +94,10 @@ async def process_job(job: dict) -> None:
         except (json.JSONDecodeError, TypeError):
             input_data = {}
 
+    # Inject job-level context into input_data so handlers can use it
+    input_data.setdefault("user_id", job.get("user_id", ""))
+    input_data.setdefault("job_id", job_id)
+
     handler_name = TYPE_MAP.get(job_type)
     if not handler_name:
         fail_job(job_id, f"Unknown job type: {job_type}")
