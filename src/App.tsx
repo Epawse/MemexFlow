@@ -1,11 +1,13 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth } from './lib/AuthProvider';
-import { LoginPage } from './features/auth/LoginPage';
-import { DashboardLayout } from './shared/components/DashboardLayout';
-import { DashboardPage } from './features/dashboard/DashboardPage';
-import { CapturesPage } from './features/captures/CapturesPage';
-import { ProjectsPage } from './features/projects/ProjectsPage';
-import { BriefsPage } from './features/briefs/BriefsPage';
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useAuth } from "./lib/AuthProvider";
+import { LoginPage } from "./features/auth/LoginPage";
+import { DashboardLayout } from "./shared/components/DashboardLayout";
+import { DashboardPage } from "./features/dashboard/DashboardPage";
+import { CapturesPage } from "./features/captures/CapturesPage";
+import { ProjectsPage } from "./features/projects/ProjectsPage";
+import { ProjectDetailPage } from "./features/projects/ProjectDetailPage";
+import { MemoriesPage } from "./features/memories/MemoriesPage";
+import { BriefsPage } from "./features/briefs/BriefsPage";
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -42,6 +44,8 @@ function App() {
           <Route index element={<DashboardPage />} />
           <Route path="captures" element={<CapturesPage />} />
           <Route path="projects" element={<ProjectsPage />} />
+          <Route path="projects/:id" element={<ProjectDetailPage />} />
+          <Route path="memories" element={<MemoriesPage />} />
           <Route path="briefs" element={<BriefsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

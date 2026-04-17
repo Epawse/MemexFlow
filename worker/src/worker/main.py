@@ -13,8 +13,10 @@ from .utils.supabase import get_supabase
 
 # Map DB job types to handler names
 TYPE_MAP = {
+    "ingestion": "ingestion",
+    "extraction": "extraction",
     "embed": "extraction",
-    "summarize": "ingestion",
+    "briefing": "briefing",
     "brief": "briefing",
     "signal": "extraction",
 }

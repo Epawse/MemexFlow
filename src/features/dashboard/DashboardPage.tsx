@@ -1,57 +1,339 @@
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../lib/AuthProvider";
+import { supabase } from "../../lib/supabase";
+import { Card } from "../../shared/components/Card";
+import { EmptyState } from "../../shared/components/EmptyState";
+import { Spinner } from "../../shared/components/Spinner";
+import { Button } from "../../shared/components/Button";
+
+type Project = {
+  id: string;
+  title: string;
+  description: string | null;
+  color: string;
+  updated_at: string;
+};
+
+type Capture = {
+  id: string;
+  title: string;
+  type: string;
+  project_id: string | null;
+  created_at: string;
+};
+
+const TYPE_ICONS: Record<string, string> = {
+  url: "M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.728-2.632a4.5 4.5 0 00-6.364-6.364L4.5 8.25a4.5 4.5 0 001.242 7.244",
+  note: "M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z",
+  file: "M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-19.5 0V18A2.25 2.25 0 004.5 20.25h15A2.25 2.25 0 0021.75 18v-5.75m-19.5 0h19.5",
+};
+
 export function DashboardPage() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [stats, setStats] = useState({
+    captures: 0,
+    memories: 0,
+    projects: 0,
+    briefs: 0,
+  });
+  const [recentCaptures, setRecentCaptures] = useState<Capture[]>([]);
+  const [activeProjects, setActiveProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [captureUrl, setCaptureUrl] = useState("");
+  const [capturing, setCapturing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchDashboard = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+
+    const [
+      capturesCount,
+      memoriesCount,
+      projectsCount,
+      briefsCount,
+      recentRes,
+      projectsRes,
+    ] = await Promise.all([
+      (supabase.from("captures") as any)
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id),
+      (supabase.from("memories") as any)
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id),
+      (supabase.from("projects") as any)
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id),
+      (supabase.from("briefs") as any)
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id),
+      (supabase.from("captures") as any)
+        .select("id, title, type, project_id, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(5),
+      (supabase.from("projects") as any)
+        .select("id, title, description, color, updated_at")
+        .eq("user_id", user.id)
+        .eq("archived", false)
+        .order("updated_at", { ascending: false })
+        .limit(5),
+    ]);
+
+    setStats({
+      captures: capturesCount.count || 0,
+      memories: memoriesCount.count || 0,
+      projects: projectsCount.count || 0,
+      briefs: briefsCount.count || 0,
+    });
+    setRecentCaptures(recentRes.data || []);
+    setActiveProjects(projectsRes.data || []);
+    setLoading(false);
+  }, [user]);
+
+  useEffect(() => {
+    fetchDashboard();
+  }, [fetchDashboard]);
+
+  const handleQuickCapture = async () => {
+    if (!user || !captureUrl.trim()) return;
+    setCapturing(true);
+    setError(null);
+
+    const url = captureUrl.trim();
+    const captureId = crypto.randomUUID();
+
+    const { error: captureError } = await (
+      supabase.from("captures") as any
+    ).insert({
+      id: captureId,
+      user_id: user.id,
+      type: "url",
+      title: url,
+      url: url,
+    });
+
+    if (captureError) {
+      setError(captureError.message);
+      setCapturing(false);
+      return;
+    }
+
+    await (supabase.from("jobs") as any).insert({
+      user_id: user.id,
+      type: "embed",
+      status: "pending",
+      input: JSON.stringify({ capture_id: captureId, url }),
+    });
+
+    setCaptureUrl("");
+    setCapturing(false);
+    fetchDashboard();
+  };
+
+  const statCards = [
+    {
+      label: "Captures",
+      value: stats.captures,
+      color: "text-primary-600 dark:text-primary-400",
+      bg: "bg-primary-50 dark:bg-primary-900/20",
+    },
+    {
+      label: "Memories",
+      value: stats.memories,
+      color: "text-purple-600 dark:text-purple-400",
+      bg: "bg-purple-50 dark:bg-purple-900/20",
+    },
+    {
+      label: "Projects",
+      value: stats.projects,
+      color: "text-green-600 dark:text-green-400",
+      bg: "bg-green-50 dark:bg-green-900/20",
+    },
+    {
+      label: "Briefs",
+      value: stats.briefs,
+      color: "text-amber-600 dark:text-amber-400",
+      bg: "bg-amber-50 dark:bg-amber-900/20",
+    },
+  ];
+
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h2>
+      <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+        Dashboard
+      </h2>
       <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
         Overview of your research activity
       </p>
 
-      {/* Stats cards */}
-      <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: 'Captures', value: '0', color: 'blue' },
-          { label: 'Memories', value: '0', color: 'purple' },
-          { label: 'Projects', value: '0', color: 'green' },
-          { label: 'Briefs', value: '0', color: 'amber' },
-        ].map((stat) => (
-          <div
-            key={stat.label}
-            className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5"
-          >
-            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-              {stat.label}
-            </p>
-            <p className="mt-1 text-3xl font-bold text-gray-900 dark:text-white">
-              {stat.value}
-            </p>
-          </div>
-        ))}
+      <div className="mt-6 flex gap-2">
+        <input
+          type="url"
+          placeholder="Quick capture — paste a URL..."
+          value={captureUrl}
+          onChange={(e) => setCaptureUrl(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleQuickCapture()}
+          className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+        />
+        <Button
+          onClick={handleQuickCapture}
+          loading={capturing}
+          disabled={!captureUrl.trim()}
+        >
+          Capture
+        </Button>
       </div>
 
-      {/* Recent activity */}
-      <div className="mt-8">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-          Recent Activity
-        </h3>
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-8 text-center">
-          <svg
-            className="mx-auto h-12 w-12 text-gray-400"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={1}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
-            />
-          </svg>
-          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            No activity yet. Start by capturing a URL or note.
-          </p>
-        </div>
-      </div>
+      {error && <p className="mt-2 text-sm text-danger">{error}</p>}
+
+      {loading ? (
+        <Spinner className="mt-12" />
+      ) : (
+        <>
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {statCards.map((stat) => (
+              <div
+                key={stat.label}
+                className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5"
+              >
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                  {stat.label}
+                </p>
+                <p className={`mt-1 text-3xl font-bold ${stat.color}`}>
+                  {stat.value}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Recent Captures
+                </h3>
+                <Button
+                  variant="text"
+                  size="sm"
+                  onClick={() => navigate("/captures")}
+                >
+                  View all
+                </Button>
+              </div>
+              {recentCaptures.length === 0 ? (
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-8 text-center">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    No captures yet. Paste a URL above to start.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {recentCaptures.map((capture) => (
+                    <Card
+                      key={capture.id}
+                      hover
+                      onClick={() => {
+                        if (capture.project_id) {
+                          navigate(`/projects/${capture.project_id}`);
+                        }
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-primary-50 dark:bg-primary-900/30 flex items-center justify-center flex-shrink-0">
+                          <svg
+                            className="w-4 h-4 text-primary-600 dark:text-primary-400"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={1.5}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d={TYPE_ICONS[capture.type] || TYPE_ICONS.url}
+                            />
+                          </svg>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                            {capture.title}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {new Date(capture.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Active Projects
+                </h3>
+                <Button
+                  variant="text"
+                  size="sm"
+                  onClick={() => navigate("/projects")}
+                >
+                  View all
+                </Button>
+              </div>
+              {activeProjects.length === 0 ? (
+                <EmptyState
+                  title="No projects yet"
+                  description="Create a project to organize your research."
+                  action={
+                    <Button size="sm" onClick={() => navigate("/projects")}>
+                      Create project
+                    </Button>
+                  }
+                />
+              ) : (
+                <div className="space-y-2">
+                  {activeProjects.map((project) => (
+                    <Card
+                      key={project.id}
+                      hover
+                      onClick={() => navigate(`/projects/${project.id}`)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-9 h-9 rounded-lg flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
+                          style={{
+                            backgroundColor: project.color || "#6366f1",
+                          }}
+                        >
+                          {project.title.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                            {project.title}
+                          </p>
+                          {project.description && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                              {project.description}
+                            </p>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">
+                          {new Date(project.updated_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

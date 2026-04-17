@@ -10,26 +10,50 @@ Each handler processes a specific job type:
 import json
 from typing import Any
 
+import httpx
+
 from ..utils.llm import call_llm, generate_embedding
 from ..utils.logging import logger
+from ..utils.supabase import get_supabase
 
 
 async def handle_echo(input_data: dict[str, Any]) -> dict[str, Any]:
-    """Test job handler - echoes input back."""
     return {"echo": input_data}
 
 
 async def handle_ingestion(input_data: dict[str, Any]) -> dict[str, Any]:
-    """Ingestion job - extracts clean text from URL content.
+    """Ingestion job - fetch URL content and extract clean text.
 
-    Input: {"url": "...", "raw_content": "..."}
+    Input: {"url": "...", "capture_id": "..."}
     Output: {"title": "...", "content": "...", "summary": "..."}
     """
     url = input_data.get("url", "")
-    raw_content = input_data.get("raw_content", "")
+    capture_id = input_data.get("capture_id", "")
+    supabase = get_supabase()
+
+    if not url:
+        raise ValueError("url is required")
+
+    raw_content = ""
+    try:
+        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+            resp = await client.get(
+                f"https://r.jina.ai/{url}",
+                headers={"Accept": "text/plain"},
+            )
+            if resp.status_code == 200:
+                raw_content = resp.text
+    except Exception as e:
+        logger.warning("jina_fetch_failed", url=url, error=str(e))
 
     if not raw_content:
-        raise ValueError("raw_content is required")
+        try:
+            async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+                resp = await client.get(url)
+                resp.raise_for_status()
+                raw_content = resp.text
+        except Exception as e:
+            raise ValueError(f"Failed to fetch URL content: {e}") from e
 
     prompt = f"""Extract the main content from the following web page.
 Remove all navigation, ads, footers, and boilerplate.
@@ -38,34 +62,64 @@ Return the title and clean article content.
 URL: {url}
 
 Raw content:
-{raw_content[:10000]}
+{raw_content[:15000]}
 
 Return JSON with keys: title, content, summary (1-2 sentence summary)"""
 
     response = await call_llm(
         prompt=prompt,
         system="You are a content extraction assistant. Always respond with valid JSON.",
-        model="gemini-3-flash-preview",
+        model="gemini-2.5-flash",
         max_tokens=4096,
     )
 
     try:
         result = json.loads(response)
     except json.JSONDecodeError:
-        result = {"title": "", "content": response, "summary": ""}
+        result = {"title": url, "content": response, "summary": ""}
 
-    logger.info("ingestion_complete", url=url, title=result.get("title", ""))
+    title = result.get("title", "")
+    content = result.get("content", "")
+    summary = result.get("summary", "")
+
+    if capture_id:
+        (supabase.table("captures")
+         .update({
+             "title": title,
+             "content": content[:50000],
+             "metadata": json.dumps({"summary": summary, "url": url}),
+             "updated_at": "now()",
+         })
+         .eq("id", capture_id)
+         .execute())
+
+        (supabase.table("jobs")
+         .insert({
+             "user_id": input_data.get("user_id", ""),
+             "type": "extraction",
+             "status": "pending",
+             "input": json.dumps({
+                 "content": content[:8000],
+                 "capture_id": capture_id,
+                 "user_id": input_data.get("user_id", ""),
+             }),
+         })
+         .execute())
+
+    logger.info("ingestion_complete", url=url, title=title, capture_id=capture_id)
     return result
 
 
 async def handle_extraction(input_data: dict[str, Any]) -> dict[str, Any]:
-    """Extraction job - extracts structured claims from content.
+    """Extraction job - extracts structured claims from content and creates Memory rows.
 
-    Input: {"content": "...", "capture_id": "..."}
-    Output: {"memories": [{"content": "...", "memory_type": "claim", "confidence": 0.9}]}
+    Input: {"content": "...", "capture_id": "...", "user_id": "...", "project_id": "..."}
+    Output: {"memories_created": N}
     """
     content = input_data.get("content", "")
     capture_id = input_data.get("capture_id", "")
+    user_id = input_data.get("user_id", "")
+    project_id = input_data.get("project_id", "")
 
     if not content:
         raise ValueError("content is required")
@@ -84,7 +138,7 @@ Return JSON array of objects with keys: content, memory_type, confidence"""
     response = await call_llm(
         prompt=prompt,
         system="You are a knowledge extraction assistant. Extract verifiable claims. Always respond with valid JSON array.",
-        model="gemini-3-flash-preview",
+        model="gemini-2.5-flash",
         max_tokens=4096,
     )
 
@@ -95,22 +149,47 @@ Return JSON array of objects with keys: content, memory_type, confidence"""
     except json.JSONDecodeError:
         memories = [{"content": response, "memory_type": "note", "confidence": 0.5}]
 
-    # Generate embeddings for each memory
+    supabase = get_supabase()
+    created_count = 0
+
     for memory in memories:
         text = memory.get("content", "")
-        if text:
-            try:
-                embedding = await generate_embedding(text)
-                memory["embedding"] = embedding
-            except Exception as e:
-                logger.warning("embedding_failed", error=str(e))
+        if not text or len(text.strip()) < 10:
+            continue
+
+        embedding = None
+        try:
+            embedding = await generate_embedding(text)
+        except Exception as e:
+            logger.warning("embedding_failed", error=str(e))
+
+        memory_row = {
+            "user_id": user_id,
+            "project_id": project_id or None,
+            "capture_id": capture_id or None,
+            "content": text,
+            "summary": memory.get("content", text)[:500],
+            "metadata": json.dumps({
+                "memory_type": memory.get("memory_type", "claim"),
+                "confidence": memory.get("confidence", 0.7),
+            }),
+        }
+
+        result = supabase.table("memories").insert(memory_row).execute()
+        if result.data:
+            memory_id = result.data[0]["id"]
+            if embedding:
+                supabase.table("memories").update({
+                    "embedding": embedding,
+                }).eq("id", memory_id).execute()
+            created_count += 1
 
     logger.info(
         "extraction_complete",
         capture_id=capture_id,
-        memory_count=len(memories),
+        memories_created=created_count,
     )
-    return {"memories": memories}
+    return {"memories_created": created_count}
 
 
 async def handle_briefing(input_data: dict[str, Any]) -> dict[str, Any]:

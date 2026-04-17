@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../lib/AuthProvider";
 import { supabase } from "../../lib/supabase";
 import { Modal } from "../../shared/components/Modal";
@@ -24,6 +25,7 @@ const PROJECT_COLORS = [
 
 export function ProjectsPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -131,7 +133,11 @@ export function ProjectsPage() {
       ) : (
         <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {projects.map((project) => (
-            <Card key={project.id} hover onClick={() => {}}>
+            <Card
+              key={project.id}
+              hover
+              onClick={() => navigate(`/projects/${project.id}`)}
+            >
               <div className="flex items-start gap-3">
                 <div
                   className="w-10 h-10 rounded-lg flex items-center justify-center text-white text-sm font-bold flex-shrink-0"

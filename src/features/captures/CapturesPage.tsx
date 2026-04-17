@@ -1,41 +1,341 @@
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../lib/AuthProvider";
+import { supabase } from "../../lib/supabase";
+import { Button } from "../../shared/components/Button";
+import { Card } from "../../shared/components/Card";
+import { EmptyState } from "../../shared/components/EmptyState";
+import { Spinner } from "../../shared/components/Spinner";
+
+type Capture = {
+  id: string;
+  user_id: string;
+  project_id: string | null;
+  type: string;
+  title: string;
+  content: string | null;
+  url: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+};
+
+type Project = {
+  id: string;
+  title: string;
+  color: string;
+};
+
+type Job = {
+  id: string;
+  type: string;
+  status: string;
+  input: Record<string, unknown>;
+};
+
+const TYPE_ICONS: Record<string, string> = {
+  url: "M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.728-2.632a4.5 4.5 0 00-6.364-6.364L4.5 8.25a4.5 4.5 0 001.242 7.244",
+  note: "M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z",
+  file: "M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-19.5 0V18A2.25 2.25 0 004.5 20.25h15A2.25 2.25 0 0021.75 18v-5.75m-19.5 0h19.5",
+};
+
 export function CapturesPage() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [captures, setCaptures] = useState<Capture[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [captureUrl, setCaptureUrl] = useState("");
+  const [capturing, setCapturing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+
+    const [capturesRes, projectsRes, jobsRes] = await Promise.all([
+      (supabase.from("captures") as any)
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false }),
+      (supabase.from("projects") as any)
+        .select("id, title, color")
+        .eq("user_id", user.id),
+      (supabase.from("jobs") as any)
+        .select("id, type, status, input")
+        .eq("user_id", user.id)
+        .in("status", ["pending", "processing"]),
+    ]);
+
+    setCaptures(capturesRes.data || []);
+    setProjects(projectsRes.data || []);
+    setJobs(jobsRes.data || []);
+    setLoading(false);
+  }, [user]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const getCaptureStatus = (captureId: string): string | null => {
+    const job = jobs.find((j) => {
+      const input = j.input as Record<string, unknown>;
+      return input?.capture_id === captureId;
+    });
+    return job?.status || null;
+  };
+
+  const handleCapture = async () => {
+    if (!user || !captureUrl.trim()) return;
+    setCapturing(true);
+    setError(null);
+
+    const url = captureUrl.trim();
+    const captureId = crypto.randomUUID();
+
+    const { error: captureError } = await (
+      supabase.from("captures") as any
+    ).insert({
+      id: captureId,
+      user_id: user.id,
+      type: "url",
+      title: url,
+      url: url,
+    });
+
+    if (captureError) {
+      setError(captureError.message);
+      setCapturing(false);
+      return;
+    }
+
+    await (supabase.from("jobs") as any).insert({
+      user_id: user.id,
+      type: "embed",
+      status: "pending",
+      input: JSON.stringify({ capture_id: captureId, url }),
+    });
+
+    setCaptureUrl("");
+    setCapturing(false);
+    fetchData();
+  };
+
+  const groupedCaptures = () => {
+    const groups: Record<
+      string,
+      {
+        project: Project | null;
+        captures: (Capture & { status: string | null })[];
+      }
+    > = {};
+
+    const projectMap = new Map(projects.map((p) => [p.id, p]));
+
+    const unfiled: (Capture & { status: string | null })[] = [];
+
+    for (const capture of captures) {
+      const status = getCaptureStatus(capture.id);
+      const enriched = { ...capture, status };
+
+      if (capture.project_id) {
+        const project = projectMap.get(capture.project_id);
+        const key = capture.project_id;
+        if (!groups[key]) {
+          groups[key] = { project: project || null, captures: [] };
+        }
+        groups[key].captures.push(enriched);
+      } else {
+        unfiled.push(enriched);
+      }
+    }
+
+    const result: {
+      project: Project | null;
+      captures: (Capture & { status: string | null })[];
+    }[] = [];
+
+    Object.values(groups).forEach((group) => {
+      if (group.project) {
+        result.push(group);
+      }
+    });
+
+    if (unfiled.length > 0) {
+      result.push({ project: null, captures: unfiled });
+    }
+
+    return result;
+  };
+
+  const statusBadge = (status: string | null) => {
+    if (!status) return null;
+    const styles: Record<string, string> = {
+      pending: "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300",
+      processing:
+        "bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400",
+      completed:
+        "bg-success-light text-success-dark dark:bg-green-900/30 dark:text-green-400",
+      failed:
+        "bg-danger-light text-danger-dark dark:bg-red-900/30 dark:text-red-400",
+    };
+    return (
+      <span
+        className={`text-xs px-2 py-0.5 rounded-full font-medium ${styles[status] || styles.pending}`}
+      >
+        {status === "processing" ? "Capturing..." : status}
+      </span>
+    );
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Captures</h2>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Captures
+          </h2>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
             Saved URLs, notes, and highlights from your research
           </p>
         </div>
-        <button className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          New Capture
-        </button>
       </div>
 
-      {/* Empty state */}
-      <div className="mt-8 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-12 text-center">
-        <svg
-          className="mx-auto h-16 w-16 text-gray-300 dark:text-gray-600"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={1}
+      <div className="mt-6 flex gap-2">
+        <input
+          type="url"
+          placeholder="Paste a URL to capture..."
+          value={captureUrl}
+          onChange={(e) => setCaptureUrl(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleCapture()}
+          className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+        />
+        <Button
+          onClick={handleCapture}
+          loading={capturing}
+          disabled={!captureUrl.trim()}
         >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
-          />
-        </svg>
-        <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-white">No captures yet</h3>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Save URLs, clip text, or write notes to build your knowledge base.
-        </p>
+          <svg
+            className="w-4 h-4 mr-1.5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M12 4.5v15m7.5-7.5h-15"
+            />
+          </svg>
+          Capture
+        </Button>
       </div>
+
+      {error && <p className="mt-3 text-sm text-danger">{error}</p>}
+
+      {loading ? (
+        <Spinner className="mt-12" />
+      ) : captures.length === 0 ? (
+        <EmptyState
+          className="mt-8"
+          title="No captures yet"
+          description="Paste a URL above to start capturing content."
+        />
+      ) : (
+        <div className="mt-6 space-y-8">
+          {groupedCaptures().map((group) => (
+            <div key={group.project?.id || "unfiled"}>
+              <div className="flex items-center gap-2 mb-3">
+                {group.project ? (
+                  <>
+                    <div
+                      className="w-3 h-3 rounded-full flex-shrink-0"
+                      style={{
+                        backgroundColor: group.project.color || "#6366f1",
+                      }}
+                    />
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                      {group.project.title}
+                    </h3>
+                  </>
+                ) : (
+                  <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400">
+                    Unfiled
+                  </h3>
+                )}
+              </div>
+              <div className="space-y-2">
+                {group.captures.map((capture) => (
+                  <Card
+                    key={capture.id}
+                    hover
+                    onClick={() => {
+                      if (capture.project_id) {
+                        navigate(`/projects/${capture.project_id}`);
+                      }
+                    }}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-primary-50 dark:bg-primary-900/30 flex items-center justify-center flex-shrink-0">
+                        <svg
+                          className="w-4 h-4 text-primary-600 dark:text-primary-400"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={1.5}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d={TYPE_ICONS[capture.type] || TYPE_ICONS.url}
+                          />
+                        </svg>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                            {capture.title}
+                          </p>
+                          {statusBadge(capture.status)}
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                          {new Date(capture.created_at).toLocaleDateString()} ·{" "}
+                          {capture.type}
+                        </p>
+                      </div>
+                      {capture.url && (
+                        <a
+                          href={capture.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 flex-shrink-0"
+                        >
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={1.5}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"
+                            />
+                          </svg>
+                        </a>
+                      )}
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
