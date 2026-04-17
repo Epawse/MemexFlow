@@ -12,6 +12,10 @@ export default defineConfig({
     format: "es" as const,
   },
 
+  optimizeDeps: {
+    include: ["@powersync/web", "@powersync/common", "@journeyapps/wa-sqlite"],
+  },
+
   // Vite options tailored for Tauri development
   clearScreen: false,
   server: {
