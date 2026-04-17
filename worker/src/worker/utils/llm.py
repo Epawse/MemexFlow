@@ -5,13 +5,18 @@ Model tier strategy (per PRD):
 - Ingestion (URL → clean text): gemini-3-flash-preview (fast)
 - Extraction (text → claims): gemini-3-flash-preview (balanced)
 - Briefing (memories → brief): gemini-3-flash-preview (balanced)
+- Embeddings: sentence-transformers/all-MiniLM-L6-v2 (local, 384-dim)
 """
 
 import json
 import os
 import httpx
+from sentence_transformers import SentenceTransformer
 
 GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
+
+# Lazy-load embedding model (singleton pattern)
+_embedding_model: SentenceTransformer | None = None
 
 
 def _get_api_key() -> str:
@@ -71,16 +76,21 @@ async def call_llm(
     return await call_gemini(prompt=prompt, system=system, model=model, max_tokens=max_tokens)
 
 
-async def generate_embedding(text: str, model: str = "text-embedding-004") -> list[float]:
-    """Generate embedding vector using Gemini embedding model."""
-    api_key = _get_api_key()
+def _get_embedding_model() -> SentenceTransformer:
+    """Get or initialize the embedding model (singleton)."""
+    global _embedding_model
+    if _embedding_model is None:
+        _embedding_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+    return _embedding_model
 
-    url = f"{GEMINI_BASE}/{model}:embedContent?key={api_key}"
-    payload = {"model": f"models/{model}", "content": {"parts": [{"text": text}]}}
 
-    async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.post(url, json=payload)
-        resp.raise_for_status()
-        data = resp.json()
+async def generate_embedding(text: str) -> list[float]:
+    """Generate embedding vector using local sentence-transformers model.
 
-    return data.get("embedding", {}).get("values", [])
+    Uses all-MiniLM-L6-v2 which produces 384-dimensional vectors.
+    This is a lightweight model optimized for semantic similarity.
+    """
+    model = _get_embedding_model()
+    # encode() returns numpy array, convert to list
+    embedding = model.encode(text, convert_to_tensor=False)
+    return embedding.tolist()

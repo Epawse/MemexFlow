@@ -1,28 +1,32 @@
-import { PowerSyncContext } from '@powersync/react';
-import { ReactNode, useEffect, useState } from 'react';
-import { getPowerSyncDb, initPowerSync } from './powersync';
+import { PowerSyncContext } from "@powersync/react";
+import type { AbstractPowerSyncDatabase } from "@powersync/common";
+import { ReactNode, useEffect, useState } from "react";
+import { getPowerSyncDb, initPowerSync } from "./powersync";
 
 interface PowerSyncProviderProps {
   children: ReactNode;
 }
 
 export function PowerSyncProvider({ children }: PowerSyncProviderProps) {
-  const [initialized, setInitialized] = useState(false);
+  const [db, setDb] = useState<AbstractPowerSyncDatabase | null>(null);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    // Skip PowerSync initialization if URL not configured
     const powersyncUrl = import.meta.env.VITE_POWERSYNC_URL;
     if (!powersyncUrl) {
-      console.warn('VITE_POWERSYNC_URL not configured, skipping PowerSync initialization');
-      setInitialized(true);
+      console.warn(
+        "VITE_POWERSYNC_URL not configured, skipping PowerSync initialization",
+      );
       return;
     }
 
     initPowerSync()
-      .then(() => setInitialized(true))
+      .then(() => {
+        const powerSyncDb = getPowerSyncDb();
+        setDb(powerSyncDb);
+      })
       .catch((err) => {
-        console.error('PowerSync initialization error:', err);
+        console.error("PowerSync initialization error:", err);
         setError(err);
       });
   }, []);
@@ -35,15 +39,13 @@ export function PowerSyncProvider({ children }: PowerSyncProviderProps) {
             PowerSync Error
           </h2>
           <p className="text-red-700">{error.message}</p>
-          <p className="text-sm text-red-600 mt-2">
-            Check console for details
-          </p>
+          <p className="text-sm text-red-600 mt-2">Check console for details</p>
         </div>
       </div>
     );
   }
 
-  if (!initialized) {
+  if (!db && import.meta.env.VITE_POWERSYNC_URL) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
@@ -54,10 +56,8 @@ export function PowerSyncProvider({ children }: PowerSyncProviderProps) {
     );
   }
 
-  const powerSyncDb = getPowerSyncDb();
-
   return (
-    <PowerSyncContext.Provider value={powerSyncDb}>
+    <PowerSyncContext.Provider value={db as AbstractPowerSyncDatabase}>
       {children}
     </PowerSyncContext.Provider>
   );

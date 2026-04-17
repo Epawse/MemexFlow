@@ -4,17 +4,22 @@ import App from "./App";
 import "./index.css";
 import { PowerSyncProvider } from "./lib/PowerSyncProvider";
 import { AuthProvider } from "./lib/AuthProvider";
+import { ThemeProvider } from "./shared/hooks/useTheme";
+import { ErrorBoundary } from "./shared/components/ErrorBoundary";
 import { initDeepLinkHandler } from "./lib/deep-link";
 
-// Initialize deep-link handler for OAuth callbacks
 initDeepLinkHandler();
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <AuthProvider>
-      <PowerSyncProvider>
-        <App />
-      </PowerSyncProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <AuthProvider>
+          <PowerSyncProvider>
+            <App />
+          </PowerSyncProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   </React.StrictMode>,
 );

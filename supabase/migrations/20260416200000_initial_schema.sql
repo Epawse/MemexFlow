@@ -50,7 +50,7 @@ CREATE TABLE public.memories (
   capture_id UUID REFERENCES public.captures(id) ON DELETE SET NULL,
   content TEXT NOT NULL,
   summary TEXT,
-  embedding vector(1536),
+embedding vector(384),
   metadata JSONB DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -232,7 +232,7 @@ CREATE POLICY "Users can update own jobs" ON public.jobs
 
 -- Function: Vector similarity search
 CREATE OR REPLACE FUNCTION match_memories(
-  query_embedding vector(1536),
+  query_embedding vector(384),
   match_threshold float,
   match_count int,
   filter_user_id uuid DEFAULT NULL,
@@ -262,3 +262,23 @@ BEGIN
   LIMIT match_count;
 END;
 $$;
+
+-- Function: Auto-create user profile on signup
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.users (id, email, display_name, avatar_url)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    COALESCE(NEW.raw_user_meta_data->>'display_name', NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1)),
+    NEW.raw_user_meta_data->>'avatar_url'
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger: Auto-create user profile when auth.users row is created
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
