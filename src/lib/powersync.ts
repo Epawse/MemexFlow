@@ -183,7 +183,7 @@ class SupabaseConnector implements PowerSyncBackendConnector {
         // Dynamic table access — cast to bypass strict Supabase generated types
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const tableRef: any = supabase.from(op.table);
-        const record = op.opData ?? {};
+        const record = this._transformForSupabase(op.table, op.opData ?? {});
 
         switch (op.op) {
           case "PUT":
@@ -203,6 +203,43 @@ class SupabaseConnector implements PowerSyncBackendConnector {
       console.error("[PowerSync] Upload error:", error);
       throw error;
     }
+  }
+
+  /**
+   * Local SQLite stores jsonb columns as text (stringified JSON). When we
+   * upload to Supabase we must hand back actual objects, otherwise Postgres
+   * stores the string as a jsonb *string* and downstream readers have to
+   * JSON.parse twice to get at the fields.
+   */
+  private _transformForSupabase(
+    table: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    data: Record<string, any>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ): Record<string, any> {
+    const JSONB_COLUMNS: Record<string, string[]> = {
+      jobs: ["input", "output"],
+      captures: ["metadata"],
+      memories: ["metadata"],
+      briefs: ["metadata"],
+      signals: ["metadata", "related_memory_ids"],
+      users: ["preferences"],
+    };
+    const cols = JSONB_COLUMNS[table];
+    if (!cols) return data;
+
+    const out = { ...data };
+    for (const col of cols) {
+      const v = out[col];
+      if (typeof v === "string" && v.length > 0) {
+        try {
+          out[col] = JSON.parse(v);
+        } catch {
+          /* leave as-is */
+        }
+      }
+    }
+    return out;
   }
 }
 
@@ -266,6 +303,11 @@ export async function initPowerSync() {
 
   await powerSyncDb.connect(connector);
   console.log("[PowerSync] connect() resolved");
+
+  if (import.meta.env.DEV) {
+    // Expose for ad-hoc debugging: window.__psdb.getAll("SELECT ...")
+    (window as unknown as { __psdb: unknown }).__psdb = powerSyncDb;
+  }
 
   powerSyncDb.registerListener({
     statusChanged: (status) => {

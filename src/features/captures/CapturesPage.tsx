@@ -35,11 +35,17 @@ export function CapturesPage() {
   const getCaptureJob = (captureId: string): any | null => {
     return (
       jobs.find((j: any) => {
-        let input: any;
-        try {
-          input = typeof j.input === "string" ? JSON.parse(j.input) : j.input;
-        } catch {
-          input = j.input;
+        // jobs.input may arrive as: an object, a JSON string, or a
+        // double-encoded JSON string (historical rows where a jsonb
+        // column received a stringified payload). Parse up to twice.
+        let input: any = j.input;
+        if (typeof input === "string") {
+          try {
+            input = JSON.parse(input);
+            if (typeof input === "string") input = JSON.parse(input);
+          } catch {
+            /* leave as-is */
+          }
         }
         return input?.capture_id === captureId;
       }) ?? null
@@ -73,11 +79,11 @@ export function CapturesPage() {
         user_id: user.id,
         type: "ingestion",
         status: "pending",
-        input: JSON.stringify({
+        input: {
           capture_id: captureId,
           url: capture.url,
           user_id: user.id,
-        }),
+        },
       });
       if (error) throw error;
       toast.success("Retry queued", {
@@ -222,6 +228,31 @@ export function CapturesPage() {
           Capture
         </Button>
       </div>
+
+      {import.meta.env.DEV && (
+        <div className="mt-3 text-xs text-gray-500 dark:text-gray-400 font-mono space-y-1">
+          <div>
+            debug · jobs loaded: {jobs.length} (
+            {jobs.filter((j: any) => j.status === "pending").length} pending,{" "}
+            {jobs.filter((j: any) => j.status === "processing").length}{" "}
+            processing,{" "}
+            {jobs.filter((j: any) => j.status === "failed").length} failed) ·
+            captures: {captures.length} · matched:{" "}
+            {captures.filter((c: any) => getCaptureJob(c.id) !== null).length}
+          </div>
+          {jobs[0] && (
+            <div className="break-all">
+              sample job[0].input ({typeof jobs[0].input}):{" "}
+              {typeof jobs[0].input === "string"
+                ? jobs[0].input.slice(0, 160)
+                : JSON.stringify(jobs[0].input).slice(0, 160)}
+            </div>
+          )}
+          {captures[0] && (
+            <div>sample capture[0].id: {captures[0].id}</div>
+          )}
+        </div>
+      )}
 
       {captures.length === 0 ? (
         <EmptyState

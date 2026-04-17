@@ -87,15 +87,18 @@ export async function createCapture({
     });
     if (captureError) throw captureError;
 
+    // jobs.input is jsonb — pass the object directly, NOT a stringified
+    // copy. Stringifying would make Postgres store it as a jsonb string
+    // instead of a jsonb object, breaking downstream readers.
     await (supabase.from("jobs") as any).insert({
       user_id: userId,
       type: "ingestion",
       status: "pending",
-      input: JSON.stringify({
+      input: {
         capture_id: captureId,
         url: normalizedUrl,
         user_id: userId,
-      }),
+      },
     });
   }
 
