@@ -365,10 +365,14 @@ export async function deleteProject(projectId: string) {
 // ---------------------------------------------------------------------------
 
 /**
- * useDataQuery: Tries PowerSync reactive query first, falls back to Supabase.
+ * useDataQuery: returns rows from PowerSync when configured, otherwise
+ * falls back to a direct Supabase query. There is no cross-fallback:
+ * when PowerSync is configured we trust its result (including empty
+ * sets), so a just-deleted-last-row state doesn't try Supabase and
+ * fail offline.
  *
- * Always calls useQuery (React hooks rule: no conditional calls).
- * If PowerSync has data we use it reactively; otherwise we fall back to Supabase.
+ * useQuery must be called unconditionally to satisfy the React hooks
+ * rule; its result is simply ignored when PowerSync is disabled.
  */
 function useDataQuery<T extends Record<string, unknown>>(
   powerSyncSql: string,
@@ -376,58 +380,48 @@ function useDataQuery<T extends Record<string, unknown>>(
   supabaseFetcher: () => Promise<T[]>,
   deps: any[],
 ) {
-  // Always call useQuery — required by React hooks rules
+  const db = getPowerSyncDb();
   const psResult = useQuery(powerSyncSql, psParams);
-  const [fallbackData, setFallbackData] = useState<T[]>([]);
-  const [fallbackLoading, setFallbackLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const psData = psResult.data as T[] | undefined;
-  const hasPsData = psData && psData.length > 0;
+  const [fallbackData, setFallbackData] = useState<T[]>([]);
+  const [fallbackLoading, setFallbackLoading] = useState(!db);
+  const [fallbackError, setFallbackError] = useState<string | null>(null);
 
   useEffect(() => {
-    // If PowerSync already has data, don't fetch from Supabase
-    if (hasPsData) {
-      setFallbackLoading(false);
-      return;
-    }
-
-    // PowerSync empty or still loading — fetch from Supabase as fallback
+    if (db) return; // PowerSync path — skip Supabase fallback
     let cancelled = false;
     setFallbackLoading(true);
+    setFallbackError(null);
     supabaseFetcher()
       .then((data) => {
         if (!cancelled) {
           setFallbackData(data);
           setFallbackLoading(false);
-          setError(null);
         }
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(err.message || "Failed to fetch data");
+          setFallbackError(err.message || "Failed to fetch data");
           setFallbackLoading(false);
         }
       });
-
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasPsData, ...deps]);
+  }, [db, ...deps]);
 
-  // When PowerSync data arrives, switch to it
-  useEffect(() => {
-    if (hasPsData) {
-      setFallbackLoading(false);
-    }
-  }, [hasPsData]);
+  if (db) {
+    return {
+      data: ((psResult.data ?? []) as T[]),
+      isLoading: psResult.isLoading,
+      error: null as string | null,
+    };
+  }
 
   return {
-    data: hasPsData ? psData! : fallbackData,
-    isLoading: hasPsData ? psResult.isLoading : fallbackLoading,
-    // Suppress fallback error once PowerSync is serving data — the error was
-    // from a stale Supabase attempt while PS was still hydrating.
-    error: hasPsData ? null : error,
+    data: fallbackData,
+    isLoading: fallbackLoading,
+    error: fallbackError,
   };
 }

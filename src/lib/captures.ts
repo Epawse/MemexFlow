@@ -10,17 +10,24 @@ interface CreateCaptureParams {
 function normalizeUrl(raw: string): string {
   const trimmed = raw.trim();
   if (!trimmed) throw new Error("URL is required");
-  // Allow bare domains like "example.com" by prepending https://
-  const withScheme = /^https?:\/\//i.test(trimmed)
-    ? trimmed
-    : `https://${trimmed}`;
+
+  const hasScheme = /^https?:\/\//i.test(trimmed);
+
+  // If user didn't type a scheme, require the input to look like a domain
+  // *before* we prepend https://. Otherwise new URL() happily turns "123"
+  // into https://0.0.0.123/ (numeric IPv4 coercion).
+  if (!hasScheme && !/^[^\s/]+\.[a-z]{2,}(:\d+)?(\/.*)?$/i.test(trimmed)) {
+    throw new Error("That doesn't look like a valid URL");
+  }
+
+  const withScheme = hasScheme ? trimmed : `https://${trimmed}`;
   let parsed: URL;
   try {
     parsed = new URL(withScheme);
   } catch {
     throw new Error("That doesn't look like a valid URL");
   }
-  if (!parsed.hostname.includes(".")) {
+  if (!parsed.hostname) {
     throw new Error("URL is missing a valid domain");
   }
   return parsed.toString();
