@@ -69,7 +69,6 @@ Return JSON with keys: title, content, summary (1-2 sentence summary)"""
     response = await call_llm(
         prompt=prompt,
         system="You are a content extraction assistant. Always respond with valid JSON.",
-        model="gemini-2.5-flash",
         max_tokens=4096,
     )
 
@@ -143,7 +142,6 @@ Return JSON array of objects with keys: content, memory_type, confidence"""
     response = await call_llm(
         prompt=prompt,
         system="You are a knowledge extraction assistant. Extract verifiable claims. Always respond with valid JSON array.",
-        model="gemini-2.5-flash",
         max_tokens=4096,
     )
 
@@ -229,7 +227,6 @@ Return the brief in markdown format."""
     response = await call_llm(
         prompt=prompt,
         system="You are a research assistant. Write clear, evidence-based briefs. Use markdown formatting.",
-        model="gemini-2.5-flash",
         max_tokens=4096,
     )
 

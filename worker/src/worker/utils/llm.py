@@ -85,11 +85,20 @@ async def call_gemini(
 async def call_llm(
     prompt: str,
     system: str | None = None,
-    model: str = "gemini-2.5-flash",
+    model: str = "gemini-3-flash-preview",
     max_tokens: int = 4096,
 ) -> str:
-    """Generic LLM call — currently backed by Gemini."""
-    return await call_gemini(prompt=prompt, system=system, model=model, max_tokens=max_tokens)
+    """Generic LLM call — currently backed by Gemini.
+
+    Falls back to gemini-2.5-flash if the primary model returns 503.
+    """
+    try:
+        return await call_gemini(prompt=prompt, system=system, model=model, max_tokens=max_tokens)
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 503 and model != "gemini-2.5-flash":
+            logger.warning("llm_fallback", original_model=model, reason="503")
+            return await call_gemini(prompt=prompt, system=system, model="gemini-2.5-flash", max_tokens=max_tokens)
+        raise
 
 
 def _get_embedding_model() -> SentenceTransformer:
