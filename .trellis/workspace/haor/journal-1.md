@@ -282,3 +282,49 @@ Full pipeline working: URL paste → ingestion job (Jina Reader fetch) → captu
 ### Next Steps
 
 - None - task complete
+
+
+## Session 7: Phase 1 Step 5: PowerSync offline migration + bug fixes + PSYNC_S2105 fix
+
+**Date**: 2026-04-17
+**Task**: Phase 1 Step 5: PowerSync offline migration + bug fixes + PSYNC_S2105 fix
+**Branch**: `main`
+
+### Summary
+
+Completed Step 5 (offline support) and multiple bug fixes:
+- Created shared createCapture() utility with PowerSync/Supabase dual-path
+- Fixed job type mismatch (embed → ingestion) in ProjectDetailPage and DashboardPage
+- Fixed worker handle_ingestion not passing project_id to extraction job
+- Migrated all page reads from direct Supabase to PowerSync useQuery() with Supabase fallback (useDataQuery dual-path hook)
+- Migrated all writes to PowerSync db.execute() with Supabase fallback
+- Added SyncStatusIndicator component to DashboardLayout sidebar
+- Fixed database.types.ts job type from narrow enum to string
+- Fixed PowerSync waitForFirstSync() blocking UI — removed it, let sync happen in background
+- Fixed PowerSync useQuery() conditional hook violation — always call unconditionally
+- Fixed PSYNC_S2105 aud claim error — added 'authenticated' to PowerSync Dashboard audience
+- Fixed initPowerSync() double-call from React StrictMode — added _initialized flag
+- Added PowerSync status change logging for debugging
+- Created useDataQuery dual-path hook (PowerSync first, Supabase fallback)
+- Updated all troubleshooting docs, AGENTS.md discoveries, PRD, plan, and state-management spec
+- Step 5 acceptance criteria now all met. Step 6 (polish) remains.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+(No commits - planning session)
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

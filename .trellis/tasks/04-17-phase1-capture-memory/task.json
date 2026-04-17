@@ -3,7 +3,7 @@
   "name": "phase1-capture-memory",
   "title": "Phase 1: Capture & Memory Pipeline",
   "description": "Core value chain: capture content, extract structured memories, display in projects and dashboard",
-  "status": "planning",
+  "status": "implementing",
   "dev_type": null,
   "scope": null,
   "package": null,

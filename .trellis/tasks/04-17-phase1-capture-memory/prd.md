@@ -82,14 +82,28 @@ Frontend: Memories appear in UI
 
 ## Technical Decisions
 
-| Decision               | Choice                      | Rationale                                          |
-| ---------------------- | --------------------------- | -------------------------------------------------- |
-| URL content extraction | Jina Reader API (r.jina.ai) | Free, handles JS-rendered pages, no API key needed |
-| LLM for extraction     | Gemini 3 Flash Preview      | Cost-effective, fast, good structured output       |
-| LLM fallback           | Gemini 2.5 Flash            | Available when 3 Flash has 503 errors              |
-| Embedding model        | all-MiniLM-L6-v2 (384-dim)  | Local, fast, good for semantic search              |
-| Job queue              | Supabase poll (2s interval) | Simple, no extra infra for Phase 1                 |
-| Frontend state         | Supabase direct queries     | Simpler than PowerSync for Phase 1                 |
+| Decision               | Choice                                                         | Rationale                                            |
+| ---------------------- | -------------------------------------------------------------- | ---------------------------------------------------- |
+| URL content extraction | Jina Reader API (r.jina.ai)                                    | Free, handles JS-rendered pages, no API key needed   |
+| LLM for extraction     | Gemini 3 Flash Preview                                         | Cost-effective, fast, good structured output         |
+| LLM fallback           | Gemini 2.5 Flash                                               | Available when 3 Flash has 503 errors                |
+| Embedding model        | all-MiniLM-L6-v2 (384-dim)                                     | Local, fast, good for semantic search                |
+| Job queue              | Supabase poll (2s interval)                                    | Simple, no extra infra for Phase 1                   |
+| Frontend reads         | PowerSync `useQuery` hooks (fallback to Supabase direct)       | Local-first reads, reactive updates, offline-capable |
+| Frontend writes        | PowerSync `db.execute` (fallback to Supabase `.insert/update`) | Offline queue, auto-sync on reconnect                |
+| Capture + Job creation | Shared `createCapture()` utility in `src/lib/captures.ts`      | Single source of truth, consistent job type + input  |
+| Sync status indicator  | PowerSync `useStatus()` hook in `DashboardLayout` sidebar      | Shows connected/disconnected, uploading/downloading  |
+
+### Step 5 Architecture: Progressive PowerSync Migration
+
+Phase 1 initially used direct Supabase queries for simplicity. Step 5 migrates to a **PowerSync-first with Supabase fallback** pattern:
+
+1. **Reads**: Replace `supabase.from().select()` calls with `useQuery()` hooks from `@powersync/react`. Data comes from local SQLite, updated reactively via PowerSync sync streams.
+2. **Writes**: Replace `supabase.from().insert/update/delete` calls with `db.execute()` (SQL INSERT/UPDATE/DELETE). Locally applied immediately, queued for upload via `uploadData` connector.
+3. **Fallback**: When `VITE_POWERSYNC_URL` is not configured, fall back to direct Supabase queries. This allows development without PowerSync cloud.
+4. **Job creation offline**: Capture + Job rows written via `db.execute()`, appearing locally immediately. PowerSync uploads them to Supabase when online, then the Python worker picks them up.
+
+Key constraint: PowerSync's `uploadData` connector uses a generic PUT/PATCH/DELETE → Supabase pattern. Job `input` field must be JSON-serialized before local write so the connector can upsert it correctly.
 
 ## Acceptance Criteria (from Parent PRD)
 
@@ -97,7 +111,7 @@ Frontend: Memories appear in UI
 - [x] Paste a URL → content extracted and stored within 30s
 - [x] Extracted content shows as Memory cards with source attribution
 - [x] Home dashboard shows recent captures and project stats
-- [ ] Offline: capture a URL while offline → syncs when back online
+- [x] Offline: capture a URL while offline → syncs when back online
 
 ## Out of Scope (Phase 2+)
 

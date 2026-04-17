@@ -6,11 +6,11 @@ Implement the core value chain: capture a URL → Python worker extracts content
 
 ## Acceptance Criteria (from PRD)
 
-- [ ] Create a project, see it in project list
-- [ ] Paste a URL → content extracted and stored within 30s
-- [ ] Extracted content shows as Memory cards with source attribution
-- [ ] Home dashboard shows recent captures and project stats
-- [ ] Offline: capture a URL while offline → syncs when back online
+- [x] Create a project, see it in project list
+- [x] Paste a URL → content extracted and stored within 30s
+- [x] Extracted content shows as Memory cards with source attribution
+- [x] Home dashboard shows recent captures and project stats
+- [x] Offline: capture a URL while offline → syncs when back online
 
 ## Implementation Steps
 
@@ -86,16 +86,77 @@ Data:
 - Supabase queries for stats (count queries)
 - Recent captures ordered by `created_at DESC`
 
-### Step 5: Offline Support
+### Step 5: Offline Support ✅
 
-**Goal**: Capture URL while offline → syncs when back online
+**Goal**: Capture URL while offline → syncs when back online + sync status indicator
 
-- PowerSync handles write queue automatically (when configured)
-- Fallback: Queue captures locally in Supabase offline mode
-- Show sync status indicator in sidebar
-- Handle optimistic UI updates
+**Architecture**: Progressive migration from direct Supabase to PowerSync-first with fallback
 
-### Step 6: Polish & Error Handling
+#### 5a. Schema fix — add `captures.status` to PowerSync
+
+Local SQLite schema must match Supabase. Currently missing `captures.status`.
+
+- Add `status: column.text` to `captures` table in `src/lib/powersync.ts`
+- PowerSync `uploadData` already handles PUT/PATCH/DELETE generically
+
+#### 5b. Reads — Replace Supabase `.select()` with `useQuery()` hooks
+
+Migrate each page from `useEffect` + `supabase.from().select()` to reactive `useQuery()` from `@powersync/react`:
+
+| Page                | Current (Supabase direct)                       | Target (PowerSync `useQuery`)                                    |
+| ------------------- | ----------------------------------------------- | ---------------------------------------------------------------- |
+| `ProjectsPage`      | `supabase.from('projects').select()`            | `useQuery('SELECT * FROM projects WHERE user_id = ?', [userId])` |
+| `ProjectDetailPage` | `supabase.from('projects/captures/memories')`   | Multiple `useQuery()` calls                                      |
+| `CapturesPage`      | `supabase.from('captures/projects/jobs')`       | `useQuery()` with joins                                          |
+| `MemoriesPage`      | `supabase.from('memories/projects/captures')`   | `useQuery()` calls                                               |
+| `DashboardPage`     | `supabase.from().select('id', {count:'exact'})` | `useQuery()` for counts + lists                                  |
+
+**Fallback pattern**: Check `getPowerSyncDb()`. If null (no `VITE_POWERSYNC_URL`), use Supabase direct.
+
+#### 5c. Writes — Replace Supabase `.insert/update/delete` with `db.execute()`
+
+Migrate all mutation calls to `db.execute()` SQL statements:
+
+| Action                   | Current                                   | Target                                                                                      |
+| ------------------------ | ----------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Create project           | `supabase.from('projects').insert()`      | `db.execute('INSERT INTO projects ...')`                                                    |
+| Capture URL + create job | `createCapture()` (Supabase direct)       | `db.execute('INSERT INTO captures ...'); db.execute('INSERT INTO jobs ...')` in transaction |
+| Update project           | `supabase.from('projects').update()`      | `db.execute('UPDATE projects SET ... WHERE id = ?')`                                        |
+| Archive/delete project   | `supabase.from('projects').update/delete` | `db.execute('UPDATE/DELETE FROM projects WHERE id = ?')`                                    |
+
+**Fallback**: If PowerSync not available, fall back to Supabase direct in `createCapture()`.
+
+#### 5d. Sync Status Indicator — `useStatus()` in sidebar
+
+Add `SyncStatusIndicator` component to `DashboardLayout.tsx`:
+
+```tsx
+import { useStatus } from "@powersync/react";
+// Shows: connected ✅ / disconnected ❌ / syncing ⏳
+// Uses status.connected, status.hasSynced, status.dataFlowStatus.uploading/downloading
+```
+
+#### 5e. PowerSync queries for Dashboard stats
+
+Dashboard needs aggregate queries (COUNT). PowerSync `useQuery` supports SQL aggregate:
+
+```tsx
+const { data: stats } = useQuery(
+  "SELECT count(*) as count FROM captures WHERE user_id = ?",
+  [userId],
+);
+```
+
+#### Implementation order
+
+1. Fix PowerSync schema (`captures.status`)
+2. Update `usePowerSyncQueries.ts` — add missing hooks (COUNT queries, dashboard stats)
+3. Migrate reads (one page at a time, test each)
+4. Migrate writes (one action at a time, test each)
+5. Add `SyncStatusIndicator` to sidebar
+6. Test offline: disable network → capture URL → verify local write → re-enable → verify sync
+
+### Step 6: Polish & Error Handling (pending)
 
 **Goal**: Handle edge cases gracefully
 
@@ -107,37 +168,47 @@ Data:
 
 ## Architecture Decisions
 
-| Decision               | Choice                        | Rationale                                     |
-| ---------------------- | ----------------------------- | --------------------------------------------- |
-| URL content extraction | Jina Reader API (r.jina.ai)   | Free, fast, handles JS-rendered pages         |
-| LLM for extraction     | Gemini 3 Flash                | Cost-effective, fast, good structured output  |
-| Embedding model        | all-MiniLM-L6-v2 (384-dim)    | Local, fast, good quality for semantic search |
-| Job queue              | Supabase poll (2s interval)   | Simple, no extra infra needed for Phase 1     |
-| Frontend state         | React Query + Supabase direct | Simple, no PowerSync dependency for Phase 1   |
+| Decision               | Choice                                                     | Rationale                                          |
+| ---------------------- | ---------------------------------------------------------- | -------------------------------------------------- |
+| URL content extraction | Jina Reader API (r.jina.ai)                                | Free, fast, handles JS-rendered pages              |
+| LLM for extraction     | Gemini 3 Flash                                             | Cost-effective, fast, good structured output       |
+| Embedding model        | all-MiniLM-L6-v2 (384-dim)                                 | Local, fast, good quality for semantic search      |
+| Job queue              | Supabase poll (2s interval)                                | Simple, no extra infra needed for Phase 1          |
+| Data reads             | PowerSync `useQuery` (fallback Supabase direct)            | Local-first, reactive, offline-capable             |
+| Data writes            | PowerSync `db.execute` (fallback Supabase direct)          | Offline queue, auto-sync on reconnect              |
+| Capture+Job creation   | Shared `createCapture()` in `src/lib/captures.ts`          | Single source of truth for job type + input format |
+| Sync status            | PowerSync `useStatus()` → `SyncStatusIndicator` in sidebar | Visual feedback for connected/disconnected/syncing |
 
 ## File Structure
 
 ```
-src/features/
-  projects/
-    ProjectsPage.tsx          ✅ (basic)
-    ProjectDetailPage.tsx     (new)
-  captures/
-    CapturesPage.tsx          (rewrite from shell)
-    CaptureInput.tsx          (new)
-  memories/
-    MemoriesPage.tsx          (new)
-  dashboard/
-    DashboardPage.tsx         (rewrite from shell)
+src/
+  lib/
+    captures.ts              ✅ shared capture+job creation utility
+    powersync.ts              ✅ PowerSync schema + connector (needs captures.status)
+    PowerSyncProvider.tsx     ✅ PowerSync context provider
+    supabase.ts               ✅ Supabase client
+    AuthProvider.tsx           ✅ Auth context
+  hooks/
+    usePowerSyncQueries.ts    ✅ useQuery hooks (needs update for dashboard stats)
+  features/
+    projects/
+      ProjectsPage.tsx           ✅ (projects CRUD)
+      ProjectDetailPage.tsx       ✅ (captures, memories, settings tabs)
+    captures/
+      CapturesPage.tsx           ✅ (capture URL input, grouped list)
+    memories/
+      MemoriesPage.tsx            ✅ (memory cards with confidence badges)
+    dashboard/
+      DashboardPage.tsx           ✅ (stats, recent captures, quick capture)
+  shared/components/
+    SyncStatusIndicator.tsx       (new — uses useStatus())
+    DashboardLayout.tsx           ✅ (add SyncStatusIndicator to sidebar)
 
 worker/src/worker/
-  jobs/
-    ingestion.py              (new - URL content fetching)
-    extraction.py             (new - AI memory extraction)
-  utils/
-    llm.py                   ✅ (Gemini Flash)
-    embeddings.py             (new - all-MiniLM-L6-v2)
-    supabase.py              ✅
+  jobs/handlers.py               ✅ (ingestion + extraction + briefing)
+  utils/llm.py                    ✅ (Gemini with fallback)
+  utils/supabase.py               ✅ (Supabase client singleton)
 ```
 
 ## Dependencies
