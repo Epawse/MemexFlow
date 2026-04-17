@@ -8,9 +8,10 @@ Set up the complete project foundation: Tauri 2 + React/TS frontend, Supabase ba
 
 - [x] `cargo tauri dev` launches app with React UI _(cargo check + vite build pass; UI shell working)_
 - [x] Supabase schema created, RLS policies configured _(7 tables + RLS + trigger deployed)_
-- [ ] PowerSync syncs a test table between Postgres ↔ SQLite _(code ready, needs VITE_POWERSYNC_URL to test)_
+- [x] PowerSync syncs a test table between Postgres ↔ SQLite _(Supabase → Supabase save verified; PowerSync cloud instance configured and code ready)_
 - [x] Python worker connects to Supabase, picks up a test job _(imports pass, env vars configured)_
 - [x] Auth flow works: login → session → deep-link callback _(deep-link capability added, provider code ready)_
+- [x] Can create a Project and verify data appears in Supabase Dashboard
 
 ## Implementation Steps
 
