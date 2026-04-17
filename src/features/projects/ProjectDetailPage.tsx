@@ -260,7 +260,7 @@ export function ProjectDetailPage() {
             />
           ) : (
             <div className="space-y-3">
-              {captureList.map((capture: any) => (
+              {captureList.map((capture) => (
                 <Card key={capture.id} hover>
                   <div className="flex items-start gap-3">
                     <div className="w-8 h-8 rounded-lg bg-primary-50 dark:bg-primary-900/30 flex items-center justify-center flex-shrink-0">
@@ -308,13 +308,17 @@ export function ProjectDetailPage() {
             />
           ) : (
             <div className="space-y-4">
-              {memoryList.map((memory: any) => {
-                const metadata =
-                  (typeof memory.metadata === "string"
+              {memoryList.map((memory) => {
+                const rawMetadata: unknown =
+                  typeof memory.metadata === "string"
                     ? JSON.parse(memory.metadata || "{}")
-                    : memory.metadata) || {};
+                    : (memory.metadata ?? {});
+                const metadata = (rawMetadata ?? {}) as {
+                  confidence?: number | string;
+                  key_claims?: string[];
+                };
                 const confidence = Number(metadata.confidence) || 0;
-                const claims = (metadata.key_claims as string[]) || [];
+                const claims = metadata.key_claims ?? [];
                 const isExpanded = expandedMemory === memory.id;
 
                 const confidenceColor =

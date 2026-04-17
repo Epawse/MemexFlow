@@ -166,7 +166,7 @@ export function DashboardPage() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {recentCaptures.map((capture: any) => (
+                  {recentCaptures.map((capture) => (
                     <Card
                       key={capture.id}
                       hover
@@ -232,7 +232,7 @@ export function DashboardPage() {
                 />
               ) : (
                 <div className="space-y-2">
-                  {activeProjects.map((project: any) => (
+                  {activeProjects.map((project) => (
                     <Card
                       key={project.id}
                       hover

@@ -2,9 +2,12 @@ import { useState } from "react";
 import { useAuth } from "../../lib/AuthProvider";
 import { useMemories, useProjects } from "../../hooks/usePowerSyncQueries";
 import { useQuery } from "@powersync/react";
+import type { Memory, Project } from "../../lib/models";
 import { Button } from "../../shared/components/Button";
 import { EmptyState } from "../../shared/components/EmptyState";
 import { Spinner } from "../../shared/components/Spinner";
+
+type CaptureTitleRow = { id: string; title: string | null };
 
 export function MemoriesPage() {
   const { user } = useAuth();
@@ -26,20 +29,16 @@ export function MemoriesPage() {
   const [selectedProject, setSelectedProject] = useState<string | "all">("all");
   const [expandedMemory, setExpandedMemory] = useState<string | null>(null);
 
-  const memories = memoriesRaw ?? [];
-  const projects = projectsRaw ?? [];
-  const captures = capturesRaw ?? [];
+  const memories: Memory[] = memoriesRaw ?? [];
+  const projects: Project[] = projectsRaw ?? [];
+  const captures = (capturesRaw ?? []) as CaptureTitleRow[];
 
-  const capturesMap = new Map(
-    (captures as any[]).map((c: any) => [c.id, c.title]),
-  );
+  const capturesMap = new Map(captures.map((c) => [c.id, c.title]));
 
   const filteredMemories =
     selectedProject === "all"
       ? memories
-      : (memories as any[]).filter(
-          (m: any) => m.project_id === selectedProject,
-        );
+      : memories.filter((m) => m.project_id === selectedProject);
 
   const confidenceColor = (confidence: number) => {
     if (confidence >= 0.7)
@@ -55,7 +54,7 @@ export function MemoriesPage() {
     return "border-l-danger dark:border-l-red-500";
   };
 
-  const projectMap = new Map((projects as any[]).map((p: any) => [p.id, p]));
+  const projectMap = new Map(projects.map((p) => [p.id, p]));
 
   if (memoriesLoading || projectsLoading) {
     return <Spinner className="mt-12" />;
@@ -99,7 +98,7 @@ export function MemoriesPage() {
         >
           All
         </button>
-        {(projects as any[]).map((project: any) => (
+        {projects.map((project) => (
           <button
             key={project.id}
             onClick={() => setSelectedProject(project.id)}
@@ -122,13 +121,17 @@ export function MemoriesPage() {
         />
       ) : (
         <div className="mt-6 space-y-4">
-          {filteredMemories.map((memoryRow: any) => {
-            const metadata =
+          {filteredMemories.map((memoryRow) => {
+            const rawMetadata: unknown =
               typeof memoryRow.metadata === "string"
                 ? JSON.parse(memoryRow.metadata || "{}")
-                : memoryRow.metadata || {};
+                : (memoryRow.metadata ?? {});
+            const metadata = (rawMetadata ?? {}) as {
+              confidence?: number | string;
+              key_claims?: string[];
+            };
             const confidence = Number(metadata.confidence) || 0;
-            const claims = (metadata.key_claims as string[]) || [];
+            const claims = metadata.key_claims ?? [];
             const isExpanded = expandedMemory === memoryRow.id;
             const project = memoryRow.project_id
               ? projectMap.get(memoryRow.project_id)

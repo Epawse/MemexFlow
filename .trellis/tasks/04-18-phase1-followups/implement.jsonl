@@ -1,0 +1,7 @@
+{"file": ".trellis/workflow.md", "reason": "Project workflow and conventions"}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend development guide"}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend development guide"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Row types, forbid any, Zod at boundaries — item #4"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "ESLint/Vitest conventions, test structure — items #2, #3"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "Where tests and models live"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "Migration conventions — item #1"}

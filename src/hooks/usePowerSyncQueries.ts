@@ -2,6 +2,7 @@ import { useQuery } from "@powersync/react";
 import { useState, useEffect, useCallback } from "react";
 import { getPowerSyncDb } from "../lib/powersync";
 import { supabase } from "../lib/supabase";
+import type { Project, Capture, Memory, Job } from "../lib/models";
 
 // ---------------------------------------------------------------------------
 // Project queries
@@ -15,10 +16,10 @@ export function useProjects(userId: string) {
       .eq("archived", false)
       .order("updated_at", { ascending: false });
     if (error) throw error;
-    return data ?? [];
+    return (data ?? []) as Project[];
   }, [userId]);
 
-  return useDataQuery(
+  return useDataQuery<Project>(
     "SELECT * FROM projects WHERE user_id = ? AND archived = 0 ORDER BY updated_at DESC",
     [userId],
     supabaseQuery,
@@ -33,10 +34,10 @@ export function useProject(projectId: string) {
       .eq("id", projectId)
       .single();
     if (error) throw error;
-    return data ? [data] : [];
+    return (data ? [data] : []) as Project[];
   }, [projectId]);
 
-  return useDataQuery(
+  return useDataQuery<Project>(
     "SELECT * FROM projects WHERE id = ?",
     [projectId],
     supabaseQuery,
@@ -55,10 +56,10 @@ export function useCaptures(userId: string) {
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
     if (error) throw error;
-    return data ?? [];
+    return (data ?? []) as Capture[];
   }, [userId]);
 
-  return useDataQuery(
+  return useDataQuery<Capture>(
     "SELECT * FROM captures WHERE user_id = ? ORDER BY created_at DESC",
     [userId],
     supabaseQuery,
@@ -73,10 +74,10 @@ export function useProjectCaptures(projectId: string) {
       .eq("project_id", projectId)
       .order("created_at", { ascending: false });
     if (error) throw error;
-    return data ?? [];
+    return (data ?? []) as Capture[];
   }, [projectId]);
 
-  return useDataQuery(
+  return useDataQuery<Capture>(
     "SELECT * FROM captures WHERE project_id = ? ORDER BY created_at DESC",
     [projectId],
     supabaseQuery,
@@ -95,10 +96,10 @@ export function useMemories(userId: string) {
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
     if (error) throw error;
-    return data ?? [];
+    return (data ?? []) as Memory[];
   }, [userId]);
 
-  return useDataQuery(
+  return useDataQuery<Memory>(
     "SELECT * FROM memories WHERE user_id = ? ORDER BY created_at DESC",
     [userId],
     supabaseQuery,
@@ -113,10 +114,10 @@ export function useProjectMemories(projectId: string) {
       .eq("project_id", projectId)
       .order("created_at", { ascending: false });
     if (error) throw error;
-    return data ?? [];
+    return (data ?? []) as Memory[];
   }, [projectId]);
 
-  return useDataQuery(
+  return useDataQuery<Memory>(
     "SELECT * FROM memories WHERE project_id = ? ORDER BY created_at DESC",
     [projectId],
     supabaseQuery,
@@ -137,10 +138,10 @@ export function usePendingJobs(userId: string) {
       .order("created_at", { ascending: false })
       .limit(200);
     if (error) throw error;
-    return data ?? [];
+    return (data ?? []) as Job[];
   }, [userId]);
 
-  return useDataQuery(
+  return useDataQuery<Job>(
     "SELECT * FROM jobs WHERE user_id = ? AND status IN ('pending', 'processing', 'failed') ORDER BY created_at DESC LIMIT 200",
     [userId],
     supabaseQuery,
@@ -242,10 +243,10 @@ export function useRecentCaptures(userId: string, limit: number = 5) {
       .order("created_at", { ascending: false })
       .limit(limit);
     if (error) throw error;
-    return data ?? [];
+    return (data ?? []) as Capture[];
   }, [userId, limit]);
 
-  return useDataQuery(
+  return useDataQuery<Capture>(
     "SELECT * FROM captures WHERE user_id = ? ORDER BY created_at DESC LIMIT ?",
     [userId, limit],
     supabaseQuery,
@@ -262,10 +263,10 @@ export function useActiveProjects(userId: string, limit: number = 5) {
       .order("updated_at", { ascending: false })
       .limit(limit);
     if (error) throw error;
-    return data ?? [];
+    return (data ?? []) as Project[];
   }, [userId, limit]);
 
-  return useDataQuery(
+  return useDataQuery<Project>(
     "SELECT * FROM projects WHERE user_id = ? AND archived = 0 ORDER BY updated_at DESC LIMIT ?",
     [userId, limit],
     supabaseQuery,
@@ -374,7 +375,7 @@ export async function deleteProject(projectId: string) {
  * useQuery must be called unconditionally to satisfy the React hooks
  * rule; its result is simply ignored when PowerSync is disabled.
  */
-function useDataQuery<T extends Record<string, unknown>>(
+function useDataQuery<T>(
   powerSyncSql: string,
   psParams: any[],
   supabaseFetcher: () => Promise<T[]>,

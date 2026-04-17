@@ -13,7 +13,7 @@ interface CreateIngestionJobParams {
   url: string;
 }
 
-function normalizeUrl(raw: string): string {
+export function normalizeUrl(raw: string): string {
   const trimmed = raw.trim();
   if (!trimmed) throw new Error("URL is required");
 

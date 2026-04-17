@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { useAuth } from "../../lib/AuthProvider";
 import { useCaptures, usePendingJobs } from "../../hooks/usePowerSyncQueries";
 import { createCapture, createIngestionJob } from "../../lib/captures";
+import type { Capture, Job } from "../../lib/models";
 import { Button } from "../../shared/components/Button";
 import { Card } from "../../shared/components/Card";
 import { EmptyState } from "../../shared/components/EmptyState";
@@ -28,16 +29,16 @@ export function CapturesPage() {
   const [capturing, setCapturing] = useState(false);
   const [retryingId, setRetryingId] = useState<string | null>(null);
 
-  const captures = (capturesRaw ?? []) as any[];
-  const jobs = (jobsRaw ?? []) as any[];
+  const captures: Capture[] = capturesRaw ?? [];
+  const jobs: Job[] = jobsRaw ?? [];
 
-  const getCaptureJob = (captureId: string): any | null => {
+  const getCaptureJob = (captureId: string): Job | null => {
     return (
-      jobs.find((j: any) => {
+      jobs.find((j) => {
         // jobs.input may arrive as: an object, a JSON string, or a
         // double-encoded JSON string (historical rows where a jsonb
         // column received a stringified payload). Parse up to twice.
-        let input: any = j.input;
+        let input: unknown = j.input;
         if (typeof input === "string") {
           try {
             input = JSON.parse(input);
@@ -46,7 +47,11 @@ export function CapturesPage() {
             /* leave as-is */
           }
         }
-        return input?.capture_id === captureId;
+        return (
+          typeof input === "object" &&
+          input !== null &&
+          (input as { capture_id?: string }).capture_id === captureId
+        );
       }) ?? null
     );
   };
@@ -114,6 +119,10 @@ export function CapturesPage() {
   };
 
   type ProjectRow = { id: string; title: string; color: string };
+  type EnrichedCapture = Capture & {
+    status: string | null;
+    jobError: string | null;
+  };
 
   const groupedCaptures = () => {
     const projectMap = new Map<string, ProjectRow>();
@@ -130,13 +139,13 @@ export function CapturesPage() {
 
     const groups: Record<
       string,
-      { project: ProjectRow | null; captures: any[] }
+      { project: ProjectRow | null; captures: EnrichedCapture[] }
     > = {};
-    const unfiled: any[] = [];
+    const unfiled: EnrichedCapture[] = [];
 
     for (const capture of captures) {
       const job = getCaptureJob(capture.id);
-      const enriched = {
+      const enriched: EnrichedCapture = {
         ...capture,
         status: job?.status ?? null,
         jobError: job?.error ?? null,
@@ -155,7 +164,8 @@ export function CapturesPage() {
       }
     }
 
-    const result: { project: ProjectRow | null; captures: any[] }[] = [];
+    const result: { project: ProjectRow | null; captures: EnrichedCapture[] }[] =
+      [];
     Object.values(groups).forEach((group) => {
       if (group.project) result.push(group);
     });
@@ -274,7 +284,7 @@ export function CapturesPage() {
                 )}
               </div>
               <div className="space-y-2">
-                {group.captures.map((capture: any) => (
+                {group.captures.map((capture) => (
                   <Card
                     key={capture.id}
                     hover
