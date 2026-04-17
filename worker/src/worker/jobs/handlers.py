@@ -74,8 +74,13 @@ Return JSON with keys: title, content, summary (1-2 sentence summary)"""
     )
 
     try:
-        result = json.loads(response)
-    except json.JSONDecodeError:
+        json_str = response
+        if "```json" in json_str:
+            json_str = json_str.split("```json")[1].split("```")[0].strip()
+        elif "```" in json_str:
+            json_str = json_str.split("```")[1].split("```")[0].strip()
+        result = json.loads(json_str)
+    except (json.JSONDecodeError, IndexError):
         result = {"title": url, "content": response, "summary": ""}
 
     title = result.get("title", "")
@@ -224,7 +229,7 @@ Return the brief in markdown format."""
     response = await call_llm(
         prompt=prompt,
         system="You are a research assistant. Write clear, evidence-based briefs. Use markdown formatting.",
-        model="gemini-3-flash-preview",
+        model="gemini-2.5-flash",
         max_tokens=4096,
     )
 

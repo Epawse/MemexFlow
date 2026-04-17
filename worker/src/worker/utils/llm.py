@@ -1,11 +1,8 @@
 """LLM API wrappers for the AI worker.
 
 Uses Google Gemini via AI Studio API key.
-Model tier strategy (per PRD):
-- Ingestion (URL → clean text): gemini-3-flash-preview (fast)
-- Extraction (text → claims): gemini-3-flash-preview (balanced)
-- Briefing (memories → brief): gemini-3-flash-preview (balanced)
-- Embeddings: sentence-transformers/all-MiniLM-L6-v2 (local, 384-dim)
+Default model: gemini-2.5-flash (fast, available, good quality)
+Embeddings: sentence-transformers/all-MiniLM-L6-v2 (local, 384-dim)
 """
 
 import json
@@ -32,8 +29,9 @@ async def call_gemini(
     system: str | None = None,
     model: str = "gemini-2.5-flash",
     max_tokens: int = 4096,
+    max_retries: int = 3,
 ) -> str:
-    """Call Google Gemini API."""
+    """Call Google Gemini API with retry on transient errors."""
     api_key = _get_api_key()
 
     contents = []
@@ -52,24 +50,42 @@ async def call_gemini(
 
     url = f"{GEMINI_BASE}/{model}:generateContent?key={api_key}"
 
-    async with httpx.AsyncClient(timeout=60) as client:
-        resp = await client.post(url, json=payload)
-        resp.raise_for_status()
-        data = resp.json()
+    last_error = None
+    for attempt in range(max_retries):
+        try:
+            async with httpx.AsyncClient(timeout=60) as client:
+                resp = await client.post(url, json=payload)
+                if resp.status_code == 503:
+                    wait_time = 2 ** (attempt + 1)
+                    logger.warning("gemini_503_retry", attempt=attempt + 1, wait=wait_time)
+                    import asyncio
+                    await asyncio.sleep(wait_time)
+                    continue
+                resp.raise_for_status()
+                data = resp.json()
 
-    candidates = data.get("candidates", [])
-    if candidates:
-        parts = candidates[0].get("content", {}).get("parts", [])
-        if parts:
-            return parts[0].get("text", "")
+            candidates = data.get("candidates", [])
+            if candidates:
+                parts = candidates[0].get("content", {}).get("parts", [])
+                if parts:
+                    return parts[0].get("text", "")
 
-    raise ValueError("Empty response from Gemini")
+            raise ValueError("Empty response from Gemini")
+        except (httpx.HTTPStatusError, httpx.TimeoutException) as e:
+            last_error = e
+            if attempt < max_retries - 1:
+                wait_time = 2 ** (attempt + 1)
+                logger.warning("gemini_retry", attempt=attempt + 1, error=str(e), wait=wait_time)
+                import asyncio
+                await asyncio.sleep(wait_time)
+
+    raise last_error
 
 
 async def call_llm(
     prompt: str,
     system: str | None = None,
-    model: str = "gemini-3-flash-preview",
+    model: str = "gemini-2.5-flash",
     max_tokens: int = 4096,
 ) -> str:
     """Generic LLM call — currently backed by Gemini."""
