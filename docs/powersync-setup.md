@@ -1,4 +1,4 @@
-# PowerSync Setup Guide
+# PowerSync Setup Guide for MemexFlow
 
 PowerSync provides offline-first data sync between Supabase (Postgres) and local SQLite.
 
@@ -12,165 +12,106 @@ Tauri App (SQLite) <---> PowerSync Service <---> Supabase (Postgres)
 - **PowerSync Service**: Handles sync logic, conflict resolution
 - **Supabase**: Source of truth, server-side logic
 
-## Step 1: Create PowerSync Instance
+## Step 1: Create PowerSync Replication Role on Supabase
 
-1. Go to [powersync.com](https://powersync.com)
-2. Sign up or log in
-3. Click "Create Instance"
-4. Connect to your Supabase project:
-   - Project URL: `https://vwloyomsrbrefuwfmnln.supabase.co`
-   - Service Role Key: (from Supabase dashboard)
+Run the SQL migration on your Supabase database:
 
-## Step 2: Configure Sync Rules
+```bash
+# Option A: Via Supabase CLI
+supabase db push
 
-In PowerSync dashboard, create sync rules for each table:
-
-```yaml
-# sync-rules.yaml
-bucket_definitions:
-  user_data:
-    parameters:
-      - SELECT user_id FROM auth.users WHERE id = token_parameters.user_id
-    data:
-      - SELECT * FROM projects WHERE user_id = bucket.user_id
-      - SELECT * FROM captures WHERE user_id = bucket.user_id
-      - SELECT * FROM memories WHERE user_id = bucket.user_id
-      - SELECT * FROM briefs WHERE user_id = bucket.user_id
-      - SELECT * FROM signals WHERE user_id = bucket.user_id
-      - SELECT * FROM jobs WHERE user_id = bucket.user_id
+# Option B: Via Supabase SQL Editor (dashboard)
+# Copy the contents of supabase/migrations/20260417010000_powersync_replication_setup.sql
 ```
 
-This ensures users only sync their own data (respecting RLS policies).
+**Important**: Change `CHANGE_ME_SECURE_PASSWORD` to a secure password before running!
 
-## Step 3: Get PowerSync URL
+This creates:
 
-After creating the instance, copy the PowerSync URL:
-- Format: `https://your-instance.powersync.com`
+- `powersync_role` with replication privileges
+- `powersync` publication for logical replication
+- Read-only grants on all public tables
 
-Add to `.env`:
-```
+## Step 2: Create PowerSync Cloud Instance
+
+1. Sign up at https://dashboard.powersync.com
+2. Create a new project (e.g., "MemexFlow")
+3. Go to **Database Connections** → **Connect to Source Database**
+4. Select **Supabase** tab and enter:
+   - Host: `db.vwloyomsrbrefuwfmnln.supabase.co`
+   - Port: `5432`
+   - Database: `postgres`
+   - Username: `powersync_role`
+   - Password: (the secure password from Step 1)
+   - SSL Mode: `verify-full`
+5. Click **Test Connection** then **Save Connection**
+
+## Step 3: Deploy Sync Rules
+
+1. In the PowerSync Dashboard, go to **Sync Streams**
+2. Copy the contents of `powersync/sync-config.yaml`
+3. Paste into the dashboard editor
+4. Click **Deploy**
+
+The sync rules filter data by `user_id` using `token.sub` from Supabase Auth JWTs, ensuring users only see their own data.
+
+## Step 4: Configure Client Auth
+
+1. Go to **Client Auth** in PowerSync Dashboard
+2. Select **Supabase** as the auth provider
+3. Enter your Supabase project URL and JWT secret
+4. Enable **Development Tokens** for testing (optional)
+5. Save
+
+## Step 5: Update .env
+
+Copy the PowerSync instance URL from the dashboard and add to `.env`:
+
+```bash
 VITE_POWERSYNC_URL=https://your-instance.powersync.com
 ```
 
-## Step 4: Test Sync
+## Step 6: Test Sync
 
-1. Start the app: `npm run tauri dev`
-2. Sign in (we'll implement auth in Step 5)
-3. Create a project
-4. Check Supabase dashboard - data should appear
-5. Go offline (disable network)
-6. Create another project - should work
-7. Go online - data should sync
+1. Run `cargo tauri dev`
+2. Sign in with a user account
+3. Create a project in the UI → verify in Supabase Dashboard
+4. Create a project in Supabase Dashboard → verify in the UI
+5. Disconnect network, create data, reconnect → verify sync
 
-## How It Works
+## Naming Convention
 
-### Local Schema
+| Supabase Column        | PowerSync Local Column | Notes                    |
+| ---------------------- | ---------------------- | ------------------------ |
+| `type`                 | `type`                 | Same name for all tables |
+| `input` (jobs)         | `input`                | JSON stored as TEXT      |
+| `embedding` (memories) | N/A                    | Not synced (too large)   |
 
-PowerSync maintains a local SQLite database with a simplified schema:
-- No vector columns (embeddings stay server-side)
-- JSON columns stored as TEXT
-- Optimized indexes for common queries
+## Sync Rules Reference
 
-### Sync Flow
+See `powersync/sync-config.yaml` for the complete sync configuration using edition 3 (Sync Streams).
 
-**Downstream (Server → Client)**:
-1. PowerSync watches Postgres replication log
-2. Filters changes based on sync rules
-3. Pushes changes to client SQLite
+Key design decisions:
 
-**Upstream (Client → Server)**:
-1. App writes to local SQLite
-2. PowerSync queues changes
-3. Uploads to Supabase via REST API
-4. Supabase triggers update Postgres
-
-### Conflict Resolution
-
-PowerSync uses "last write wins" by default:
-- Timestamp-based conflict resolution
-- Server timestamp is authoritative
-- Client changes are rebased on server state
-
-## Usage in Code
-
-### Query Data (Reactive)
-
-```tsx
-import { useProjects } from '@/hooks/usePowerSyncQueries';
-
-function ProjectList() {
-  const { data: projects } = useProjects(userId);
-  
-  return (
-    <ul>
-      {projects.map(p => <li key={p.id}>{p.title}</li>)}
-    </ul>
-  );
-}
-```
-
-### Write Data
-
-```tsx
-import { usePowerSync } from '@powersync/react';
-
-function CreateProject() {
-  const db = usePowerSync();
-  
-  const handleCreate = async () => {
-    await db.execute(
-      'INSERT INTO projects (id, user_id, title) VALUES (?, ?, ?)',
-      [crypto.randomUUID(), userId, 'New Project']
-    );
-    // Automatically syncs to Supabase
-  };
-}
-```
-
-### Watch Sync Status
-
-```tsx
-import { usePowerSync } from '@powersync/react';
-
-function SyncStatus() {
-  const db = usePowerSync();
-  const [status, setStatus] = useState(db.currentStatus);
-  
-  useEffect(() => {
-    return db.registerListener({
-      statusChanged: (status) => setStatus(status),
-    });
-  }, []);
-  
-  return <div>Status: {status.connected ? 'Online' : 'Offline'}</div>;
-}
-```
-
-## Limitations
-
-- **No vector sync**: Embeddings (1536 dimensions) are too large for mobile sync
-  - Solution: Embeddings stay server-side, search via API
-- **Schema changes**: Require PowerSync dashboard update
-- **Large files**: Store in Supabase Storage, sync URLs only
+- User-scoped: Each stream filters by `user_id = token.sub`
+- All 7 tables synced: users, projects, captures, memories, briefs, signals, jobs
+- Embeddings NOT synced (384-dim vectors, too large for mobile)
 
 ## Troubleshooting
 
 ### "Not authenticated" error
-- Make sure user is signed in via Supabase Auth
-- Check that JWT token is valid
+
+- Ensure user is signed in via Supabase Auth
+- Check that JWT token is valid and not expired
 
 ### Data not syncing
+
 - Check sync rules in PowerSync dashboard
 - Verify RLS policies allow the operation
-- Check network connectivity
+- Check that `powersync` publication exists: `SELECT * FROM pg_publication_tables WHERE pubname = 'powersync';`
 
 ### Slow initial sync
+
 - First sync downloads all user data
-- Subsequent syncs are incremental (only changes)
-- Consider pagination for large datasets
-
-## Next Steps
-
-- Step 5: Implement authentication (Supabase Auth + Tauri deep links)
-- Step 6: Build UI components
-- Step 7: Add end-to-end tests
+- Subsequent syncs are incremental
+- For large datasets, consider pagination

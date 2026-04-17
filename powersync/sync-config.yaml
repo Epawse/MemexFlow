@@ -1,0 +1,56 @@
+# PowerSync Sync Rules for MemexFlow
+# Edition 3 (Sync Streams) format
+# Tables are filtered by user_id to enforce data isolation
+
+config:
+  edition: 3
+
+streams:
+  # User's own profile
+  user_profiles:
+    params:
+      user_id: token.sub
+    queries:
+      - SELECT id, email, display_name, avatar_url, preferences, created_at, updated_at FROM users WHERE id = {user_id}
+
+  # Projects owned by the user
+  projects:
+    params:
+      user_id: token.sub
+    queries:
+      - SELECT id, user_id, title, description, color, icon, archived, created_at, updated_at FROM projects WHERE user_id = {user_id}
+
+  # Captures owned by the user
+  captures:
+    params:
+      user_id: token.sub
+    queries:
+      - SELECT id, user_id, project_id, type, title, content, url, metadata, created_at, updated_at FROM captures WHERE user_id = {user_id}
+
+  # Memories owned by the user
+  memories:
+    params:
+      user_id: token.sub
+    queries:
+      - SELECT id, user_id, project_id, capture_id, content, summary, metadata, created_at, updated_at FROM memories WHERE user_id = {user_id}
+
+  # Briefs owned by the user
+  briefs:
+    params:
+      user_id: token.sub
+    queries:
+      - SELECT id, user_id, project_id, title, content, type, status, metadata, created_at, updated_at FROM briefs WHERE user_id = {user_id}
+
+  # Signals owned by the user
+  signals:
+    params:
+      user_id: token.sub
+    queries:
+      - SELECT id, user_id, project_id, type, title, description, confidence, related_memory_ids, metadata, created_at, updated_at FROM signals WHERE user_id = {user_id}
+
+  # Jobs owned by the user
+  jobs:
+    params:
+      user_id: token.sub
+    queries:
+      - SELECT id, user_id, type, status, input, output, error, created_at, updated_at, started_at, completed_at FROM jobs WHERE user_id = {user_id}
