@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { useAuth } from "../../lib/AuthProvider";
 import {
   useDashboardStats,
@@ -22,13 +23,18 @@ export function DashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const stats = useDashboardStats(user?.id ?? "");
-  const { data: recentCapturesRaw, isLoading: capturesLoading } =
-    useRecentCaptures(user?.id ?? "", 5);
-  const { data: activeProjectsRaw, isLoading: projectsLoading } =
-    useActiveProjects(user?.id ?? "", 5);
+  const {
+    data: recentCapturesRaw,
+    isLoading: capturesLoading,
+    error: capturesError,
+  } = useRecentCaptures(user?.id ?? "", 5);
+  const {
+    data: activeProjectsRaw,
+    isLoading: projectsLoading,
+    error: projectsError,
+  } = useActiveProjects(user?.id ?? "", 5);
   const [captureUrl, setCaptureUrl] = useState("");
   const [capturing, setCapturing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const recentCaptures = recentCapturesRaw ?? [];
   const activeProjects = activeProjectsRaw ?? [];
@@ -36,13 +42,17 @@ export function DashboardPage() {
   const handleQuickCapture = async () => {
     if (!user || !captureUrl.trim()) return;
     setCapturing(true);
-    setError(null);
 
     try {
       await createCapture({ userId: user.id, url: captureUrl.trim() });
       setCaptureUrl("");
+      toast.success("Capture queued", {
+        description: "Content will be extracted shortly.",
+      });
     } catch (err: any) {
-      setError(err.message || "Failed to capture URL");
+      toast.error("Failed to capture URL", {
+        description: err.message || "Unknown error",
+      });
     } finally {
       setCapturing(false);
     }
@@ -76,6 +86,7 @@ export function DashboardPage() {
   ];
 
   const loading = stats.isLoading || capturesLoading || projectsLoading;
+  const queryError = capturesError || projectsError;
 
   return (
     <div>
@@ -104,9 +115,16 @@ export function DashboardPage() {
         </Button>
       </div>
 
-      {error && <p className="mt-2 text-sm text-danger">{error}</p>}
-
-      {loading ? (
+      {queryError ? (
+        <EmptyState
+          className="mt-12"
+          title="Couldn't load dashboard"
+          description={queryError || "Please try again."}
+          action={
+            <Button onClick={() => window.location.reload()}>Reload</Button>
+          }
+        />
+      ) : loading ? (
         <Spinner className="mt-12" />
       ) : (
         <>

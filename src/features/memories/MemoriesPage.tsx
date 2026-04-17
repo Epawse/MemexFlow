@@ -2,17 +2,22 @@ import { useState } from "react";
 import { useAuth } from "../../lib/AuthProvider";
 import { useMemories, useProjects } from "../../hooks/usePowerSyncQueries";
 import { useQuery } from "@powersync/react";
+import { Button } from "../../shared/components/Button";
 import { EmptyState } from "../../shared/components/EmptyState";
 import { Spinner } from "../../shared/components/Spinner";
 
 export function MemoriesPage() {
   const { user } = useAuth();
-  const { data: memoriesRaw, isLoading: memoriesLoading } = useMemories(
-    user?.id ?? "",
-  );
-  const { data: projectsRaw, isLoading: projectsLoading } = useProjects(
-    user?.id ?? "",
-  );
+  const {
+    data: memoriesRaw,
+    isLoading: memoriesLoading,
+    error: memoriesError,
+  } = useMemories(user?.id ?? "");
+  const {
+    data: projectsRaw,
+    isLoading: projectsLoading,
+    error: projectsError,
+  } = useProjects(user?.id ?? "");
   const { data: capturesRaw } = useQuery(
     "SELECT id, title FROM captures WHERE user_id = ?",
     [user?.id ?? ""],
@@ -54,6 +59,20 @@ export function MemoriesPage() {
 
   if (memoriesLoading || projectsLoading) {
     return <Spinner className="mt-12" />;
+  }
+
+  const queryError = memoriesError || projectsError;
+  if (queryError) {
+    return (
+      <EmptyState
+        className="mt-12"
+        title="Couldn't load memories"
+        description={queryError || "Please try again."}
+        action={
+          <Button onClick={() => window.location.reload()}>Reload</Button>
+        }
+      />
+    );
   }
 
   return (

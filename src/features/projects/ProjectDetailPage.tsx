@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { useAuth } from "../../lib/AuthProvider";
 import {
   useProject,
@@ -40,9 +41,13 @@ export function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { data: projectRows } = useProject(id ?? "");
-  const { data: captures } = useProjectCaptures(id ?? "");
-  const { data: memories } = useProjectMemories(id ?? "");
+  const {
+    data: projectRows,
+    isLoading: projectLoading,
+    error: projectError,
+  } = useProject(id ?? "");
+  const { data: captures, error: capturesError } = useProjectCaptures(id ?? "");
+  const { data: memories, error: memoriesError } = useProjectMemories(id ?? "");
 
   const project = projectRows?.[0] ?? null;
 
@@ -57,12 +62,10 @@ export function ProjectDetailPage() {
   const [saving, setSaving] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const handleCapture = async () => {
     if (!user || !captureUrl.trim()) return;
     setCapturing(true);
-    setError(null);
 
     try {
       await createCapture({
@@ -71,8 +74,13 @@ export function ProjectDetailPage() {
         projectId: id,
       });
       setCaptureUrl("");
+      toast.success("Capture queued", {
+        description: "Content will be extracted shortly.",
+      });
     } catch (err: any) {
-      setError(err.message || "Failed to capture URL");
+      toast.error("Failed to capture URL", {
+        description: err.message || "Unknown error",
+      });
     } finally {
       setCapturing(false);
     }
@@ -81,35 +89,77 @@ export function ProjectDetailPage() {
   const handleSaveSettings = async () => {
     if (!id) return;
     setSaving(true);
-    setError(null);
     try {
       await updateProject(id, {
         title: editTitle.trim(),
         description: editDescription.trim() || null,
         color: editColor,
       });
+      toast.success("Project updated");
     } catch (err: any) {
-      setError(err.message || "Failed to save");
+      toast.error("Failed to save", {
+        description: err.message || "Unknown error",
+      });
     }
     setSaving(false);
   };
 
   const handleArchive = async () => {
     if (!id) return;
-    await archiveProject(id);
-    navigate("/projects");
+    try {
+      await archiveProject(id);
+      toast.success("Project archived");
+      navigate("/projects");
+    } catch (err: any) {
+      toast.error("Failed to archive project", {
+        description: err.message || "Unknown error",
+      });
+    }
   };
 
   const handleDelete = async () => {
     if (!id) return;
     setDeleting(true);
-    await deleteProject(id);
-    setDeleting(false);
-    navigate("/projects");
+    try {
+      await deleteProject(id);
+      toast.success("Project deleted");
+      navigate("/projects");
+    } catch (err: any) {
+      toast.error("Failed to delete project", {
+        description: err.message || "Unknown error",
+      });
+      setDeleting(false);
+    }
   };
 
-  if (!project) {
+  if (projectLoading) {
     return <Spinner className="mt-12" />;
+  }
+
+  if (projectError) {
+    return (
+      <EmptyState
+        className="mt-12"
+        title="Couldn't load project"
+        description={projectError || "Please try again."}
+        action={
+          <Button onClick={() => navigate("/projects")}>Back to projects</Button>
+        }
+      />
+    );
+  }
+
+  if (!project) {
+    return (
+      <EmptyState
+        className="mt-12"
+        title="Project not found"
+        description="This project may have been deleted."
+        action={
+          <Button onClick={() => navigate("/projects")}>Back to projects</Button>
+        }
+      />
+    );
   }
 
   const tabs: { key: Tab; label: string }[] = [
@@ -198,9 +248,12 @@ export function ProjectDetailPage() {
             </Button>
           </div>
 
-          {error && <p className="text-sm text-danger mb-4">{error}</p>}
-
-          {captureList.length === 0 ? (
+          {capturesError ? (
+            <EmptyState
+              title="Couldn't load captures"
+              description={capturesError || "Please try again."}
+            />
+          ) : captureList.length === 0 ? (
             <EmptyState
               title="No captures yet"
               description="Paste a URL above to start capturing content for this project."
@@ -243,7 +296,12 @@ export function ProjectDetailPage() {
 
       {activeTab === "memories" && (
         <div>
-          {memoryList.length === 0 ? (
+          {memoriesError ? (
+            <EmptyState
+              title="Couldn't load memories"
+              description={memoriesError || "Please try again."}
+            />
+          ) : memoryList.length === 0 ? (
             <EmptyState
               title="No memories yet"
               description="Memories are extracted from your captures. Capture some content first."

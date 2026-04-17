@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { useAuth } from "../../lib/AuthProvider";
 import { useProjects, createProject } from "../../hooks/usePowerSyncQueries";
 import { Modal } from "../../shared/components/Modal";
@@ -23,18 +24,22 @@ const PROJECT_COLORS = [
 export function ProjectsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { data: projects, isLoading } = useProjects(user?.id ?? "");
+  const { data: projects, isLoading, error } = useProjects(user?.id ?? "");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
   const [newColor, setNewColor] = useState(PROJECT_COLORS[0]);
-  const [error, setError] = useState<string | null>(null);
+
+  const resetForm = () => {
+    setNewTitle("");
+    setNewDescription("");
+    setNewColor(PROJECT_COLORS[0]);
+  };
 
   const handleCreate = async () => {
     if (!user || !newTitle.trim()) return;
     setCreating(true);
-    setError(null);
 
     try {
       await createProject(
@@ -44,11 +49,14 @@ export function ProjectsPage() {
         newColor,
       );
       setShowCreateModal(false);
-      setNewTitle("");
-      setNewDescription("");
-      setNewColor(PROJECT_COLORS[0]);
+      resetForm();
+      toast.success("Project created", {
+        description: `"${newTitle.trim()}" is ready.`,
+      });
     } catch (err: any) {
-      setError(err.message || "Failed to create project");
+      toast.error("Failed to create project", {
+        description: err.message || "Unknown error",
+      });
     } finally {
       setCreating(false);
     }
@@ -87,6 +95,15 @@ export function ProjectsPage() {
 
       {isLoading ? (
         <Spinner className="mt-12" />
+      ) : error ? (
+        <EmptyState
+          className="mt-12"
+          title="Couldn't load projects"
+          description={error || "Please try again."}
+          action={
+            <Button onClick={() => window.location.reload()}>Reload</Button>
+          }
+        />
       ) : projectList.length === 0 ? (
         <EmptyState
           title="No projects yet"
@@ -135,7 +152,7 @@ export function ProjectsPage() {
         open={showCreateModal}
         onClose={() => {
           setShowCreateModal(false);
-          setError(null);
+          resetForm();
         }}
         title="New Project"
       >
@@ -179,15 +196,12 @@ export function ProjectsPage() {
               ))}
             </div>
           </div>
-          {error && (
-            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-          )}
           <div className="flex justify-end gap-3 pt-2">
             <Button
               variant="secondary"
               onClick={() => {
                 setShowCreateModal(false);
-                setError(null);
+                resetForm();
               }}
               type="button"
             >

@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { useAuth } from "../../lib/AuthProvider";
 import { useCaptures, usePendingJobs } from "../../hooks/usePowerSyncQueries";
 import { createCapture } from "../../lib/captures";
+import { supabase } from "../../lib/supabase";
 import { Button } from "../../shared/components/Button";
 import { Card } from "../../shared/components/Card";
 import { EmptyState } from "../../shared/components/EmptyState";
@@ -17,42 +19,76 @@ const TYPE_ICONS: Record<string, string> = {
 export function CapturesPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { data: capturesRaw, isLoading: capturesLoading } = useCaptures(
-    user?.id ?? "",
-  );
+  const {
+    data: capturesRaw,
+    isLoading: capturesLoading,
+    error: capturesError,
+  } = useCaptures(user?.id ?? "");
   const { data: jobsRaw } = usePendingJobs(user?.id ?? "");
   const [captureUrl, setCaptureUrl] = useState("");
   const [capturing, setCapturing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
 
   const captures = (capturesRaw ?? []) as any[];
   const jobs = (jobsRaw ?? []) as any[];
 
-  const getCaptureStatus = (captureId: string): string | null => {
-    const job = jobs.find((j: any) => {
-      let input: any;
-      try {
-        input = typeof j.input === "string" ? JSON.parse(j.input) : j.input;
-      } catch {
-        input = j.input;
-      }
-      return input?.capture_id === captureId;
-    });
-    return job?.status || null;
+  const getCaptureJob = (captureId: string): any | null => {
+    return (
+      jobs.find((j: any) => {
+        let input: any;
+        try {
+          input = typeof j.input === "string" ? JSON.parse(j.input) : j.input;
+        } catch {
+          input = j.input;
+        }
+        return input?.capture_id === captureId;
+      }) ?? null
+    );
   };
 
   const handleCapture = async () => {
     if (!user || !captureUrl.trim()) return;
     setCapturing(true);
-    setError(null);
 
     try {
       await createCapture({ userId: user.id, url: captureUrl.trim() });
       setCaptureUrl("");
+      toast.success("Capture queued", {
+        description: "Content will be extracted shortly.",
+      });
     } catch (err: any) {
-      setError(err.message || "Failed to capture URL");
+      toast.error("Failed to capture URL", {
+        description: err.message || "Unknown error",
+      });
     } finally {
       setCapturing(false);
+    }
+  };
+
+  const handleRetry = async (captureId: string, capture: any) => {
+    if (!user) return;
+    setRetryingId(captureId);
+    try {
+      const { error } = await (supabase.from("jobs") as any).insert({
+        user_id: user.id,
+        type: "ingestion",
+        status: "pending",
+        input: JSON.stringify({
+          capture_id: captureId,
+          url: capture.url,
+          user_id: user.id,
+        }),
+      });
+      if (error) throw error;
+      toast.success("Retry queued", {
+        description: "The capture will be re-processed.",
+      });
+    } catch (err: any) {
+      toast.error("Retry failed", {
+        description: err.message || "Unknown error",
+      });
+    } finally {
+      setRetryingId(null);
     }
   };
 
@@ -78,7 +114,12 @@ export function CapturesPage() {
     const unfiled: any[] = [];
 
     for (const capture of captures) {
-      const enriched = { ...capture, status: getCaptureStatus(capture.id) };
+      const job = getCaptureJob(capture.id);
+      const enriched = {
+        ...capture,
+        status: job?.status ?? null,
+        jobError: job?.error ?? null,
+      };
       if (capture.project_id) {
         const project = projectMap.get(capture.project_id);
         if (!groups[capture.project_id]) {
@@ -125,6 +166,19 @@ export function CapturesPage() {
     return <Spinner className="mt-12" />;
   }
 
+  if (capturesError) {
+    return (
+      <EmptyState
+        className="mt-12"
+        title="Couldn't load captures"
+        description={capturesError || "Please try again."}
+        action={
+          <Button onClick={() => window.location.reload()}>Reload</Button>
+        }
+      />
+    );
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between">
@@ -168,8 +222,6 @@ export function CapturesPage() {
           Capture
         </Button>
       </div>
-
-      {error && <p className="mt-3 text-sm text-danger">{error}</p>}
 
       {captures.length === 0 ? (
         <EmptyState
@@ -238,6 +290,27 @@ export function CapturesPage() {
                           {new Date(capture.created_at).toLocaleDateString()} ·{" "}
                           {capture.type}
                         </p>
+                        {capture.status === "failed" && (
+                          <div className="mt-2 flex items-center gap-2">
+                            {capture.jobError && (
+                              <span className="text-xs text-danger truncate max-w-xs">
+                                {capture.jobError}
+                              </span>
+                            )}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRetry(capture.id, capture);
+                              }}
+                              disabled={retryingId === capture.id}
+                              className="text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline disabled:opacity-50 cursor-pointer"
+                            >
+                              {retryingId === capture.id
+                                ? "Retrying..."
+                                : "Retry"}
+                            </button>
+                          </div>
+                        )}
                       </div>
                       {capture.url && (
                         <a

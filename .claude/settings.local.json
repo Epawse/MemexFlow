@@ -13,7 +13,8 @@
       "Bash(rustc --version)",
       "Bash(cargo --version)",
       "Bash(npm run *)",
-      "Bash(find /Users/haor/Learning/1_Projects/memexflow-2/src/shared/components -name \"*.tsx\" -exec wc -l {} +)"
+      "Bash(find /Users/haor/Learning/1_Projects/memexflow-2/src/shared/components -name \"*.tsx\" -exec wc -l {} +)",
+      "Bash(npx tsc *)"
     ]
   }
 }

@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Toaster } from "sonner";
 import { useAuth } from "./lib/AuthProvider";
 import { LoginPage } from "./features/auth/LoginPage";
 import { DashboardLayout } from "./shared/components/DashboardLayout";
@@ -33,6 +34,12 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 function App() {
   return (
     <BrowserRouter>
+      <Toaster
+        position="bottom-right"
+        richColors
+        closeButton
+        toastOptions={{ duration: 4000 }}
+      />
       <Routes>
         <Route
           element={
