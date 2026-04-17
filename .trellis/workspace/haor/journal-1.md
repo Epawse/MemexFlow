@@ -328,3 +328,87 @@ Completed Step 5 (offline support) and multiple bug fixes:
 ### Next Steps
 
 - None - task complete
+
+
+## Session 8: Phase 1 Step 5+6: PowerSync offline migration + UI polish + jsonb double-encoding fix
+
+**Date**: 2026-04-18
+**Task**: Phase 1 Step 5+6: PowerSync offline migration + UI polish + jsonb double-encoding fix
+**Branch**: `main`
+
+### Summary
+
+Finished Phase 1 final two steps (offline sync migration + UI polish) plus five rounds of follow-up bug fixes: dashboard reactivity, retry UI, offline empty-state regressions, URL validation, and the jsonb double-encoding root cause.
+
+### Main Changes
+
+## What shipped
+
+| Area | Change |
+|------|--------|
+| PowerSync offline migration (Step 5) | Pages migrated from direct Supabase to PowerSync `useQuery` via dual-path `useDataQuery`; writes go through `db.execute` when available; `captures.status` added to local schema; `SyncStatusIndicator` wired into `DashboardLayout`; removed blocking `waitForFirstSync`; guarded `initPowerSync` against StrictMode double-init |
+| UI polish (Step 6) | `sonner` toast integration at App root; every mutation now reports success/failure via toast; `useDataQuery` `error` field is surfaced as an inline EmptyState + Reload; Captures page shows a Retry button + inline job error on failed ingestion; ProjectDetail renders a "Project not found" EmptyState instead of spinning forever; Briefs empty state unified with the shared component |
+| Worker | `handle_ingestion` forwards `project_id` into the extraction job's input payload so memories stay linked to their project |
+| Bug-fix round 1 | `usePendingJobs` widened to include `failed` jobs; `useDataQuery` stops leaking stale fallback errors once PowerSync is serving data; `useDashboardStats` rewritten as four reactive `useQuery` COUNT calls; `normalizeUrl` rejects empty/non-domain input |
+| Bug-fix round 2 | `useDataQuery` simplified to a strict PS-only-or-Supabase-only branch (no cross-fallback) so deleting the last row offline no longer fires a spurious Supabase fetch; `normalizeUrl` regex tightened so `123` can't be coerced to `https://0.0.0.123/` |
+| jsonb double-encoding (root cause) | Supabase `jobs.input` is jsonb. Client had been passing `JSON.stringify({...})` through both the Supabase insert path and the PowerSync upload batch, making Postgres store the payload as a jsonb *string* not object. `SupabaseConnector._transformForSupabase` now JSON.parses whitelisted jsonb columns before upsert; `createCapture` / retry pass the object directly; `getCaptureJob` does a defensive double-parse so historical double-encoded rows still match |
+| Retry path unification | Extracted `createIngestionJob()` so `createCapture` and the retry handler share a single local-first writer; retry now checks for an existing pending/processing job before inserting (stops double-click dupes) and gracefully rejects captures with a null url |
+| Dev/docs | `scripts/check-schema.mjs`, `scripts/test-e2e.mjs`, `scripts/test-offline.mjs` read creds from env instead of hard-coded service_role keys; `.env.example` documents `SUPABASE_SERVICE_ROLE_KEY`; added `docs/troubleshooting/powersync-offline-migration.md` and `powersync-aud-claim-error.md`; `spec/frontend/state-management.md` reflects the dual-path contract |
+
+## Updated Files
+
+- `src/App.tsx` — mount `<Toaster />`
+- `src/lib/powersync.ts` — captures.status column, `_initialized` guard, `SupabaseConnector._transformForSupabase`, dev-only `window.__psdb` expose
+- `src/lib/PowerSyncProvider.tsx` — drop `waitForFirstSync`
+- `src/lib/database.types.ts` — broaden `jobs.type` from enum to string
+- `src/lib/captures.ts` — `normalizeUrl`, shared `createIngestionJob`, object-shaped Supabase inserts
+- `src/hooks/usePowerSyncQueries.ts` — dual-path `useDataQuery`, reactive `useDashboardStats`, `usePendingJobs` includes `failed`
+- `src/features/captures/CapturesPage.tsx` — Retry UI + defensive double-parse + re-entry guard
+- `src/features/dashboard/DashboardPage.tsx`, `memories/MemoriesPage.tsx`, `projects/ProjectsPage.tsx`, `projects/ProjectDetailPage.tsx`, `briefs/BriefsPage.tsx` — error state + toast feedback + EmptyState unification
+- `src/shared/components/SyncStatusIndicator.tsx` (new), `DashboardLayout.tsx`
+- `worker/src/worker/jobs/handlers.py` — propagate `project_id`
+- `scripts/check-schema.mjs`, `scripts/test-e2e.mjs`, `scripts/test-offline.mjs` (new) + `.env.example`
+- `docs/troubleshooting/powersync-offline-migration.md`, `powersync-aud-claim-error.md` (new), `docs/troubleshooting/README.md`, `AGENTS.md`, `.trellis/spec/frontend/state-management.md`
+
+## Verification
+
+- `npx tsc --noEmit --strict` — clean
+- Manual smoke (user tested): URL validation, Retry UI, failed/processing badges, offline create+sync, dashboard count reactivity, "Project not found" state, jsonb double-encoding resolution (28 historical failed jobs now match via defensive double-parse)
+- `npm run build` not run (classifier gate); pending CI
+- `eslint` — project lacks ESLint flat config (ESLint 10 required), pre-existing gap; TS strict with `noUnusedLocals`/`noUnusedParameters` enforces the baseline
+
+## Known follow-ups (not blocking)
+
+- Cleanup SQL for historical double-encoded `jobs.input` rows: `UPDATE jobs SET input = (input #>> '{}')::jsonb WHERE jsonb_typeof(input) = 'string';`
+- Add ESLint flat config so lint actually runs
+- Add Vitest coverage for `normalizeUrl` (pure function, easy win)
+- Consider shared Row types (`Capture`, `Job`, ...) to replace `(rows as any[])` casts
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1911ad9` | (see git log) |
+| `c813d7a` | (see git log) |
+| `698b810` | (see git log) |
+| `96b52b2` | (see git log) |
+| `aeb93c2` | (see git log) |
+| `a2da20d` | (see git log) |
+| `f276acf` | (see git log) |
+| `479926b` | (see git log) |
+| `17493c5` | (see git log) |
+| `8047830` | (see git log) |
+| `dec05ac` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
