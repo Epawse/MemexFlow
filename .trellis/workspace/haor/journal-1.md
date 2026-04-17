@@ -249,3 +249,36 @@ All Phase 0 acceptance criteria verified: app launches, schema deployed, Supabas
 ### Next Steps
 
 - None - task complete
+
+
+## Session 6: Phase 1: worker pipeline end-to-end verified
+
+**Date**: 2026-04-17
+**Task**: Phase 1: worker pipeline end-to-end verified
+**Branch**: `main`
+
+### Summary
+
+Full pipeline working: URL paste → ingestion job (Jina Reader fetch) → capture row updated → extraction job auto-created → LLM extracts memories → 2 memories created in Supabase with embeddings. Fixed: job type constraint, JSON input parsing, model fallback, logger import, embed→ingestion mapping.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `9e11c80` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

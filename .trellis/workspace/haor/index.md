@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 5
+- **Total Sessions**: 6
 - **Last Active**: 2026-04-17
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~251 | Active |
+| `journal-1.md` | ~284 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 6 | 2026-04-17 | Phase 1: worker pipeline end-to-end verified | `9e11c80` | `main` |
 | 5 | 2026-04-17 | Phase 0 complete: all acceptance criteria verified | `38688db` | `main` |
 | 4 | 2026-04-17 | Phase 0 complete: mark task finished, create troubleshooting docs | `af2b812` | `main` |
 | 3 | 2026-04-17 | PowerSync setup + Phase 0 integration testing | `76ca544` | `main` |
