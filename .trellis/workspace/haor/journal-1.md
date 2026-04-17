@@ -150,3 +150,36 @@ Fixed 4 critical bugs (deep-link capability, PowerSync schema, embedding dimensi
 ### Next Steps
 
 - None - task complete
+
+
+## Session 3: PowerSync setup + Phase 0 integration testing
+
+**Date**: 2026-04-17
+**Task**: PowerSync setup + Phase 0 integration testing
+**Branch**: `main`
+
+### Summary
+
+Added PowerSync replication role + publication migration, edition 3 sync rules for all 7 tables, updated docs. Evaluated Tauri plugin (alpha) - staying with @powersync/web SDK. Phase 0 acceptance: 4/5 complete, PowerSync sync needs manual instance setup.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `76ca544` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
