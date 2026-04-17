@@ -2,6 +2,7 @@ import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../../lib/AuthProvider";
 import { ThemeToggle } from "../hooks/useTheme";
+import { SyncStatusIndicator } from "./SyncStatusIndicator";
 
 const navItems = [
   {
@@ -101,6 +102,7 @@ export function DashboardLayout() {
               </div>
               <ThemeToggle />
             </div>
+            <SyncStatusIndicator />
             <button
               onClick={signOut}
               className="w-full mt-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-left cursor-pointer"

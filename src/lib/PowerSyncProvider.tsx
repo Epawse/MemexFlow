@@ -1,6 +1,6 @@
 import { PowerSyncContext } from "@powersync/react";
 import type { AbstractPowerSyncDatabase } from "@powersync/common";
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { getPowerSyncDb, initPowerSync } from "./powersync";
 
 interface PowerSyncProviderProps {
@@ -10,15 +10,19 @@ interface PowerSyncProviderProps {
 export function PowerSyncProvider({ children }: PowerSyncProviderProps) {
   const [db, setDb] = useState<AbstractPowerSyncDatabase | null>(null);
   const [error, setError] = useState<Error | null>(null);
+  const initialized = useRef(false);
 
   useEffect(() => {
     const powersyncUrl = import.meta.env.VITE_POWERSYNC_URL;
     if (!powersyncUrl) {
       console.warn(
-        "VITE_POWERSYNC_URL not configured, skipping PowerSync initialization",
+        "[PowerSync] VITE_POWERSYNC_URL not configured, skipping initialization",
       );
       return;
     }
+
+    if (initialized.current) return;
+    initialized.current = true;
 
     initPowerSync()
       .then(() => {
@@ -26,7 +30,7 @@ export function PowerSyncProvider({ children }: PowerSyncProviderProps) {
         setDb(powerSyncDb);
       })
       .catch((err) => {
-        console.error("PowerSync initialization error:", err);
+        console.error("[PowerSync] Initialization error:", err);
         setError(err);
       });
   }, []);

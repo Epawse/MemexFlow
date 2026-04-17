@@ -1,72 +1,40 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { useAuth } from "../../lib/AuthProvider";
-import { supabase } from "../../lib/supabase";
+import { useMemories, useProjects } from "../../hooks/usePowerSyncQueries";
+import { useQuery } from "@powersync/react";
 import { EmptyState } from "../../shared/components/EmptyState";
 import { Spinner } from "../../shared/components/Spinner";
 
-type Memory = {
-  id: string;
-  user_id: string;
-  project_id: string | null;
-  capture_id: string | null;
-  content: string;
-  summary: string | null;
-  metadata: Record<string, unknown>;
-  created_at: string;
-  updated_at: string;
-};
-
-type Project = {
-  id: string;
-  title: string;
-  color: string;
-};
-
 export function MemoriesPage() {
   const { user } = useAuth();
-  const [memories, setMemories] = useState<Memory[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [capturesMap, setCapturesMap] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(true);
+  const { data: memoriesRaw, isLoading: memoriesLoading } = useMemories(
+    user?.id ?? "",
+  );
+  const { data: projectsRaw, isLoading: projectsLoading } = useProjects(
+    user?.id ?? "",
+  );
+  const { data: capturesRaw } = useQuery(
+    "SELECT id, title FROM captures WHERE user_id = ?",
+    [user?.id ?? ""],
+  );
+
   const [selectedProject, setSelectedProject] = useState<string | "all">("all");
   const [expandedMemory, setExpandedMemory] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
-    if (!user) return;
-    setLoading(true);
+  const memories = memoriesRaw ?? [];
+  const projects = projectsRaw ?? [];
+  const captures = capturesRaw ?? [];
 
-    const [memoriesRes, projectsRes, capturesRes] = await Promise.all([
-      (supabase.from("memories") as any)
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false }),
-      (supabase.from("projects") as any)
-        .select("id, title, color")
-        .eq("user_id", user.id),
-      (supabase.from("captures") as any)
-        .select("id, title")
-        .eq("user_id", user.id),
-    ]);
-
-    setMemories(memoriesRes.data || []);
-    setProjects(projectsRes.data || []);
-
-    const capMap: Record<string, string> = {};
-    for (const c of capturesRes.data || []) {
-      capMap[c.id] = c.title;
-    }
-    setCapturesMap(capMap);
-    setLoading(false);
-  }, [user]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const capturesMap = new Map(
+    (captures as any[]).map((c: any) => [c.id, c.title]),
+  );
 
   const filteredMemories =
     selectedProject === "all"
       ? memories
-      : memories.filter((m) => m.project_id === selectedProject);
+      : (memories as any[]).filter(
+          (m: any) => m.project_id === selectedProject,
+        );
 
   const confidenceColor = (confidence: number) => {
     if (confidence >= 0.7)
@@ -82,7 +50,11 @@ export function MemoriesPage() {
     return "border-l-danger dark:border-l-red-500";
   };
 
-  const projectMap = new Map(projects.map((p) => [p.id, p]));
+  const projectMap = new Map((projects as any[]).map((p: any) => [p.id, p]));
+
+  if (memoriesLoading || projectsLoading) {
+    return <Spinner className="mt-12" />;
+  }
 
   return (
     <div>
@@ -108,7 +80,7 @@ export function MemoriesPage() {
         >
           All
         </button>
-        {projects.map((project) => (
+        {(projects as any[]).map((project: any) => (
           <button
             key={project.id}
             onClick={() => setSelectedProject(project.id)}
@@ -123,9 +95,7 @@ export function MemoriesPage() {
         ))}
       </div>
 
-      {loading ? (
-        <Spinner className="mt-12" />
-      ) : filteredMemories.length === 0 ? (
+      {filteredMemories.length === 0 ? (
         <EmptyState
           className="mt-8"
           title="No memories yet"
@@ -133,29 +103,34 @@ export function MemoriesPage() {
         />
       ) : (
         <div className="mt-6 space-y-4">
-          {filteredMemories.map((memory) => {
-            const metadata = memory.metadata || {};
-            const confidence = (metadata.confidence as number) || 0;
+          {filteredMemories.map((memoryRow: any) => {
+            const metadata =
+              typeof memoryRow.metadata === "string"
+                ? JSON.parse(memoryRow.metadata || "{}")
+                : memoryRow.metadata || {};
+            const confidence = Number(metadata.confidence) || 0;
             const claims = (metadata.key_claims as string[]) || [];
-            const isExpanded = expandedMemory === memory.id;
-            const project = memory.project_id
-              ? projectMap.get(memory.project_id)
+            const isExpanded = expandedMemory === memoryRow.id;
+            const project = memoryRow.project_id
+              ? projectMap.get(memoryRow.project_id)
               : null;
-            const sourceTitle = memory.capture_id
-              ? capturesMap[memory.capture_id]
+            const sourceTitle = memoryRow.capture_id
+              ? capturesMap.get(memoryRow.capture_id)
               : null;
 
             return (
               <div
-                key={memory.id}
+                key={memoryRow.id}
                 className={`bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 border-l-4 ${confidenceBorder(confidence)} cursor-pointer transition-shadow hover:shadow-md`}
-                onClick={() => setExpandedMemory(isExpanded ? null : memory.id)}
+                onClick={() =>
+                  setExpandedMemory(isExpanded ? null : memoryRow.id)
+                }
               >
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-gray-900 dark:text-white">
-                        {memory.summary || "Memory"}
+                        {memoryRow.summary || "Memory"}
                       </p>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
                         {confidence > 0 && (
@@ -184,7 +159,7 @@ export function MemoriesPage() {
                       </div>
                     </div>
                     <span className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">
-                      {new Date(memory.created_at).toLocaleDateString()}
+                      {new Date(memoryRow.created_at).toLocaleDateString()}
                     </span>
                   </div>
 
@@ -202,7 +177,7 @@ export function MemoriesPage() {
                   {isExpanded && (
                     <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
                       <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                        {memory.content}
+                        {memoryRow.content}
                       </p>
                     </div>
                   )}

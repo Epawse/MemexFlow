@@ -1,37 +1,12 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../lib/AuthProvider";
-import { supabase } from "../../lib/supabase";
+import { useCaptures, usePendingJobs } from "../../hooks/usePowerSyncQueries";
+import { createCapture } from "../../lib/captures";
 import { Button } from "../../shared/components/Button";
 import { Card } from "../../shared/components/Card";
 import { EmptyState } from "../../shared/components/EmptyState";
 import { Spinner } from "../../shared/components/Spinner";
-
-type Capture = {
-  id: string;
-  user_id: string;
-  project_id: string | null;
-  type: string;
-  title: string;
-  content: string | null;
-  url: string | null;
-  metadata: Record<string, unknown>;
-  created_at: string;
-  updated_at: string;
-};
-
-type Project = {
-  id: string;
-  title: string;
-  color: string;
-};
-
-type Job = {
-  id: string;
-  type: string;
-  status: string;
-  input: Record<string, unknown>;
-};
 
 const TYPE_ICONS: Record<string, string> = {
   url: "M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.728-2.632a4.5 4.5 0 00-6.364-6.364L4.5 8.25a4.5 4.5 0 001.242 7.244",
@@ -42,45 +17,25 @@ const TYPE_ICONS: Record<string, string> = {
 export function CapturesPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [captures, setCaptures] = useState<Capture[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: capturesRaw, isLoading: capturesLoading } = useCaptures(
+    user?.id ?? "",
+  );
+  const { data: jobsRaw } = usePendingJobs(user?.id ?? "");
   const [captureUrl, setCaptureUrl] = useState("");
   const [capturing, setCapturing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
-    if (!user) return;
-    setLoading(true);
-
-    const [capturesRes, projectsRes, jobsRes] = await Promise.all([
-      (supabase.from("captures") as any)
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false }),
-      (supabase.from("projects") as any)
-        .select("id, title, color")
-        .eq("user_id", user.id),
-      (supabase.from("jobs") as any)
-        .select("id, type, status, input")
-        .eq("user_id", user.id)
-        .in("status", ["pending", "processing"]),
-    ]);
-
-    setCaptures(capturesRes.data || []);
-    setProjects(projectsRes.data || []);
-    setJobs(jobsRes.data || []);
-    setLoading(false);
-  }, [user]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const captures = (capturesRaw ?? []) as any[];
+  const jobs = (jobsRaw ?? []) as any[];
 
   const getCaptureStatus = (captureId: string): string | null => {
-    const job = jobs.find((j) => {
-      const input = j.input as Record<string, unknown>;
+    const job = jobs.find((j: any) => {
+      let input: any;
+      try {
+        input = typeof j.input === "string" ? JSON.parse(j.input) : j.input;
+      } catch {
+        input = j.input;
+      }
       return input?.capture_id === captureId;
     });
     return job?.status || null;
@@ -91,81 +46,58 @@ export function CapturesPage() {
     setCapturing(true);
     setError(null);
 
-    const url = captureUrl.trim();
-    const captureId = crypto.randomUUID();
-
-    const { error: captureError } = await (
-      supabase.from("captures") as any
-    ).insert({
-      id: captureId,
-      user_id: user.id,
-      type: "url",
-      title: url,
-      url: url,
-    });
-
-    if (captureError) {
-      setError(captureError.message);
+    try {
+      await createCapture({ userId: user.id, url: captureUrl.trim() });
+      setCaptureUrl("");
+    } catch (err: any) {
+      setError(err.message || "Failed to capture URL");
+    } finally {
       setCapturing(false);
-      return;
     }
-
-    await (supabase.from("jobs") as any).insert({
-      user_id: user.id,
-      type: "ingestion",
-      status: "pending",
-      input: JSON.stringify({ capture_id: captureId, url, user_id: user.id }),
-    });
-
-    setCaptureUrl("");
-    setCapturing(false);
-    fetchData();
   };
 
+  type ProjectRow = { id: string; title: string; color: string };
+
   const groupedCaptures = () => {
-    const groups: Record<
-      string,
-      {
-        project: Project | null;
-        captures: (Capture & { status: string | null })[];
-      }
-    > = {};
-
-    const projectMap = new Map(projects.map((p) => [p.id, p]));
-
-    const unfiled: (Capture & { status: string | null })[] = [];
+    const projectMap = new Map<string, ProjectRow>();
 
     for (const capture of captures) {
-      const status = getCaptureStatus(capture.id);
-      const enriched = { ...capture, status };
+      if (capture.project_id && !projectMap.has(capture.project_id)) {
+        projectMap.set(capture.project_id, {
+          id: capture.project_id,
+          title: capture.project_id,
+          color: "#6366f1",
+        });
+      }
+    }
 
+    const groups: Record<
+      string,
+      { project: ProjectRow | null; captures: any[] }
+    > = {};
+    const unfiled: any[] = [];
+
+    for (const capture of captures) {
+      const enriched = { ...capture, status: getCaptureStatus(capture.id) };
       if (capture.project_id) {
         const project = projectMap.get(capture.project_id);
-        const key = capture.project_id;
-        if (!groups[key]) {
-          groups[key] = { project: project || null, captures: [] };
+        if (!groups[capture.project_id]) {
+          groups[capture.project_id] = {
+            project: project ?? null,
+            captures: [],
+          };
         }
-        groups[key].captures.push(enriched);
+        groups[capture.project_id].captures.push(enriched);
       } else {
         unfiled.push(enriched);
       }
     }
 
-    const result: {
-      project: Project | null;
-      captures: (Capture & { status: string | null })[];
-    }[] = [];
-
+    const result: { project: ProjectRow | null; captures: any[] }[] = [];
     Object.values(groups).forEach((group) => {
-      if (group.project) {
-        result.push(group);
-      }
+      if (group.project) result.push(group);
     });
-
-    if (unfiled.length > 0) {
-      result.push({ project: null, captures: unfiled });
-    }
-
+    if (unfiled.length > 0) result.push({ project: null, captures: unfiled });
     return result;
   };
 
@@ -188,6 +120,10 @@ export function CapturesPage() {
       </span>
     );
   };
+
+  if (capturesLoading) {
+    return <Spinner className="mt-12" />;
+  }
 
   return (
     <div>
@@ -235,9 +171,7 @@ export function CapturesPage() {
 
       {error && <p className="mt-3 text-sm text-danger">{error}</p>}
 
-      {loading ? (
-        <Spinner className="mt-12" />
-      ) : captures.length === 0 ? (
+      {captures.length === 0 ? (
         <EmptyState
           className="mt-8"
           title="No captures yet"
@@ -267,7 +201,7 @@ export function CapturesPage() {
                 )}
               </div>
               <div className="space-y-2">
-                {group.captures.map((capture) => (
+                {group.captures.map((capture: any) => (
                   <Card
                     key={capture.id}
                     hover

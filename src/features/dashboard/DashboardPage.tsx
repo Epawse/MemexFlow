@@ -1,27 +1,16 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../lib/AuthProvider";
-import { supabase } from "../../lib/supabase";
+import {
+  useDashboardStats,
+  useRecentCaptures,
+  useActiveProjects,
+} from "../../hooks/usePowerSyncQueries";
+import { createCapture } from "../../lib/captures";
 import { Card } from "../../shared/components/Card";
 import { EmptyState } from "../../shared/components/EmptyState";
 import { Spinner } from "../../shared/components/Spinner";
 import { Button } from "../../shared/components/Button";
-
-type Project = {
-  id: string;
-  title: string;
-  description: string | null;
-  color: string;
-  updated_at: string;
-};
-
-type Capture = {
-  id: string;
-  title: string;
-  type: string;
-  project_id: string | null;
-  created_at: string;
-};
 
 const TYPE_ICONS: Record<string, string> = {
   url: "M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.728-2.632a4.5 4.5 0 00-6.364-6.364L4.5 8.25a4.5 4.5 0 001.242 7.244",
@@ -32,105 +21,31 @@ const TYPE_ICONS: Record<string, string> = {
 export function DashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [stats, setStats] = useState({
-    captures: 0,
-    memories: 0,
-    projects: 0,
-    briefs: 0,
-  });
-  const [recentCaptures, setRecentCaptures] = useState<Capture[]>([]);
-  const [activeProjects, setActiveProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
+  const stats = useDashboardStats(user?.id ?? "");
+  const { data: recentCapturesRaw, isLoading: capturesLoading } =
+    useRecentCaptures(user?.id ?? "", 5);
+  const { data: activeProjectsRaw, isLoading: projectsLoading } =
+    useActiveProjects(user?.id ?? "", 5);
   const [captureUrl, setCaptureUrl] = useState("");
   const [capturing, setCapturing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchDashboard = useCallback(async () => {
-    if (!user) return;
-    setLoading(true);
-
-    const [
-      capturesCount,
-      memoriesCount,
-      projectsCount,
-      briefsCount,
-      recentRes,
-      projectsRes,
-    ] = await Promise.all([
-      (supabase.from("captures") as any)
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id),
-      (supabase.from("memories") as any)
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id),
-      (supabase.from("projects") as any)
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id),
-      (supabase.from("briefs") as any)
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id),
-      (supabase.from("captures") as any)
-        .select("id, title, type, project_id, created_at")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(5),
-      (supabase.from("projects") as any)
-        .select("id, title, description, color, updated_at")
-        .eq("user_id", user.id)
-        .eq("archived", false)
-        .order("updated_at", { ascending: false })
-        .limit(5),
-    ]);
-
-    setStats({
-      captures: capturesCount.count || 0,
-      memories: memoriesCount.count || 0,
-      projects: projectsCount.count || 0,
-      briefs: briefsCount.count || 0,
-    });
-    setRecentCaptures(recentRes.data || []);
-    setActiveProjects(projectsRes.data || []);
-    setLoading(false);
-  }, [user]);
-
-  useEffect(() => {
-    fetchDashboard();
-  }, [fetchDashboard]);
+  const recentCaptures = recentCapturesRaw ?? [];
+  const activeProjects = activeProjectsRaw ?? [];
 
   const handleQuickCapture = async () => {
     if (!user || !captureUrl.trim()) return;
     setCapturing(true);
     setError(null);
 
-    const url = captureUrl.trim();
-    const captureId = crypto.randomUUID();
-
-    const { error: captureError } = await (
-      supabase.from("captures") as any
-    ).insert({
-      id: captureId,
-      user_id: user.id,
-      type: "url",
-      title: url,
-      url: url,
-    });
-
-    if (captureError) {
-      setError(captureError.message);
+    try {
+      await createCapture({ userId: user.id, url: captureUrl.trim() });
+      setCaptureUrl("");
+    } catch (err: any) {
+      setError(err.message || "Failed to capture URL");
+    } finally {
       setCapturing(false);
-      return;
     }
-
-    await (supabase.from("jobs") as any).insert({
-      user_id: user.id,
-      type: "embed",
-      status: "pending",
-      input: JSON.stringify({ capture_id: captureId, url }),
-    });
-
-    setCaptureUrl("");
-    setCapturing(false);
-    fetchDashboard();
   };
 
   const statCards = [
@@ -159,6 +74,8 @@ export function DashboardPage() {
       bg: "bg-amber-50 dark:bg-amber-900/20",
     },
   ];
+
+  const loading = stats.isLoading || capturesLoading || projectsLoading;
 
   return (
     <div>
@@ -231,7 +148,7 @@ export function DashboardPage() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {recentCaptures.map((capture) => (
+                  {recentCaptures.map((capture: any) => (
                     <Card
                       key={capture.id}
                       hover
@@ -297,7 +214,7 @@ export function DashboardPage() {
                 />
               ) : (
                 <div className="space-y-2">
-                  {activeProjects.map((project) => (
+                  {activeProjects.map((project: any) => (
                     <Card
                       key={project.id}
                       hover

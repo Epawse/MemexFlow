@@ -1,16 +1,13 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../lib/AuthProvider";
-import { supabase } from "../../lib/supabase";
+import { useProjects, createProject } from "../../hooks/usePowerSyncQueries";
 import { Modal } from "../../shared/components/Modal";
 import { Button } from "../../shared/components/Button";
 import { Input } from "../../shared/components/Input";
 import { Card } from "../../shared/components/Card";
 import { EmptyState } from "../../shared/components/EmptyState";
-import type { Database } from "../../lib/database.types";
-
-type Project = Database["public"]["Tables"]["projects"]["Row"];
-type ProjectInsert = Database["public"]["Tables"]["projects"]["Insert"];
+import { Spinner } from "../../shared/components/Spinner";
 
 const PROJECT_COLORS = [
   "#6366f1",
@@ -26,8 +23,7 @@ const PROJECT_COLORS = [
 export function ProjectsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: projects, isLoading } = useProjects(user?.id ?? "");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newTitle, setNewTitle] = useState("");
@@ -35,57 +31,30 @@ export function ProjectsPage() {
   const [newColor, setNewColor] = useState(PROJECT_COLORS[0]);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchProjects = useCallback(async () => {
-    if (!user) return;
-    setLoading(true);
-    const { data, error: fetchError } = await supabase
-      .from("projects")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("updated_at", { ascending: false });
-
-    if (fetchError) {
-      console.error("Error fetching projects:", fetchError);
-    } else {
-      setProjects(data || []);
-    }
-    setLoading(false);
-  }, [user]);
-
-  useEffect(() => {
-    fetchProjects();
-  }, [fetchProjects]);
-
   const handleCreate = async () => {
     if (!user || !newTitle.trim()) return;
     setCreating(true);
     setError(null);
 
-    const project: ProjectInsert = {
-      user_id: user.id,
-      title: newTitle.trim(),
-      description: newDescription.trim() || null,
-      color: newColor,
-    };
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: insertError } = await (
-      supabase.from("projects") as any
-    ).insert(project);
-
-    if (insertError) {
-      setError(insertError.message);
+    try {
+      await createProject(
+        user.id,
+        newTitle.trim(),
+        newDescription.trim() || null,
+        newColor,
+      );
+      setShowCreateModal(false);
+      setNewTitle("");
+      setNewDescription("");
+      setNewColor(PROJECT_COLORS[0]);
+    } catch (err: any) {
+      setError(err.message || "Failed to create project");
+    } finally {
       setCreating(false);
-      return;
     }
-
-    await fetchProjects();
-    setShowCreateModal(false);
-    setNewTitle("");
-    setNewDescription("");
-    setNewColor(PROJECT_COLORS[0]);
-    setCreating(false);
   };
+
+  const projectList = projects ?? [];
 
   return (
     <div>
@@ -116,11 +85,9 @@ export function ProjectsPage() {
         </Button>
       </div>
 
-      {loading ? (
-        <div className="mt-8 flex justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
-        </div>
-      ) : projects.length === 0 ? (
+      {isLoading ? (
+        <Spinner className="mt-12" />
+      ) : projectList.length === 0 ? (
         <EmptyState
           title="No projects yet"
           description="Create a project to organize related captures and generate briefs."
@@ -132,7 +99,7 @@ export function ProjectsPage() {
         />
       ) : (
         <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {projects.map((project) => (
+          {projectList.map((project: any) => (
             <Card
               key={project.id}
               hover

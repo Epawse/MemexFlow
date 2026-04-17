@@ -149,6 +149,7 @@ class SupabaseConnector implements PowerSyncBackendConnector {
   async fetchCredentials() {
     const session = await supabase.auth.getSession();
     if (!session.data.session) {
+      console.warn("[PowerSync] No auth session — cannot connect yet");
       return null;
     }
 
@@ -157,10 +158,16 @@ class SupabaseConnector implements PowerSyncBackendConnector {
       throw new Error("VITE_POWERSYNC_URL not configured");
     }
 
-    return {
+    const token = session.data.session.access_token;
+    console.log(
+      "[PowerSync] fetchCredentials OK — user:",
+      session.data.session.user.email,
+      "endpoint:",
       endpoint,
-      token: session.data.session.access_token,
-    };
+      "token length:",
+      token.length,
+    );
+    return { endpoint, token };
   }
 
   async uploadData(database: AbstractPowerSyncDatabase) {
@@ -193,7 +200,7 @@ class SupabaseConnector implements PowerSyncBackendConnector {
 
       await batch.complete();
     } catch (error) {
-      console.error("Upload error:", error);
+      console.error("[PowerSync] Upload error:", error);
       throw error;
     }
   }
@@ -201,6 +208,7 @@ class SupabaseConnector implements PowerSyncBackendConnector {
 
 let _powerSyncDb: PowerSyncDatabase | null = null;
 let _connector: SupabaseConnector | null = null;
+let _initialized = false;
 
 export function getPowerSyncDb(): PowerSyncDatabase | null {
   if (!import.meta.env.VITE_POWERSYNC_URL) {
@@ -239,20 +247,36 @@ export function getConnector(): SupabaseConnector | null {
 }
 
 export async function initPowerSync() {
+  if (_initialized) {
+    console.log("[PowerSync] Already initialized, skipping");
+    return;
+  }
+  _initialized = true;
+
   const powerSyncDb = getPowerSyncDb();
   const connector = getConnector();
 
   if (!powerSyncDb || !connector) {
-    console.warn("PowerSync not configured - skipping initialization");
+    console.warn("[PowerSync] Not configured — skipping initialization");
     return;
   }
 
   await powerSyncDb.init();
+  console.log("[PowerSync] Database initialized, connecting...");
+
   await powerSyncDb.connect(connector);
+  console.log("[PowerSync] connect() resolved");
 
   powerSyncDb.registerListener({
-    onChange: () => {
-      connector.uploadData(powerSyncDb).catch(console.error);
+    statusChanged: (status) => {
+      console.log("[PowerSync] Status:", {
+        connected: status.connected,
+        connecting: status.connecting,
+        hasSynced: status.hasSynced,
+        uploading: status.dataFlowStatus?.uploading,
+        downloading: status.dataFlowStatus?.downloading,
+        downloadError: status.dataFlowStatus?.downloadError?.message,
+      });
     },
   });
 }

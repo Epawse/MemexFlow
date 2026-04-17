@@ -1,7 +1,15 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../lib/AuthProvider";
-import { supabase } from "../../lib/supabase";
+import {
+  useProject,
+  useProjectCaptures,
+  useProjectMemories,
+  updateProject,
+  archiveProject,
+  deleteProject,
+} from "../../hooks/usePowerSyncQueries";
+import { createCapture } from "../../lib/captures";
 import { Button } from "../../shared/components/Button";
 import { Input } from "../../shared/components/Input";
 import { Card } from "../../shared/components/Card";
@@ -22,43 +30,6 @@ const PROJECT_COLORS = [
   "#3b82f6",
 ];
 
-type Project = {
-  id: string;
-  user_id: string;
-  title: string;
-  description: string | null;
-  color: string;
-  icon: string;
-  archived: boolean;
-  created_at: string;
-  updated_at: string;
-};
-
-type Capture = {
-  id: string;
-  user_id: string;
-  project_id: string | null;
-  type: string;
-  title: string;
-  content: string | null;
-  url: string | null;
-  metadata: Record<string, unknown>;
-  created_at: string;
-  updated_at: string;
-};
-
-type Memory = {
-  id: string;
-  user_id: string;
-  project_id: string | null;
-  capture_id: string | null;
-  content: string;
-  summary: string | null;
-  metadata: Record<string, unknown>;
-  created_at: string;
-  updated_at: string;
-};
-
 const TYPE_ICONS: Record<string, string> = {
   url: "M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.728-2.632a4.5 4.5 0 00-6.364-6.364L4.5 8.25a4.5 4.5 0 001.242 7.244",
   note: "M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z",
@@ -69,12 +40,13 @@ export function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { data: projectRows } = useProject(id ?? "");
+  const { data: captures } = useProjectCaptures(id ?? "");
+  const { data: memories } = useProjectMemories(id ?? "");
 
-  const [project, setProject] = useState<Project | null>(null);
-  const [captures, setCaptures] = useState<Capture[]>([]);
-  const [memories, setMemories] = useState<Memory[]>([]);
+  const project = projectRows?.[0] ?? null;
+
   const [activeTab, setActiveTab] = useState<Tab>("captures");
-  const [loading, setLoading] = useState(true);
   const [captureUrl, setCaptureUrl] = useState("");
   const [capturing, setCapturing] = useState(false);
   const [expandedMemory, setExpandedMemory] = useState<string | null>(null);
@@ -87,138 +59,57 @@ export function ProjectDetailPage() {
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchProject = useCallback(async () => {
-    if (!user || !id) return;
-    const { data } = await (supabase.from("projects") as any)
-      .select("*")
-      .eq("id", id)
-      .single();
-    if (data) {
-      setProject(data);
-      setEditTitle(data.title);
-      setEditDescription(data.description || "");
-      setEditColor(data.color || PROJECT_COLORS[0]);
-    }
-    setLoading(false);
-  }, [user, id]);
-
-  const fetchCaptures = useCallback(async () => {
-    if (!user || !id) return;
-    const { data } = await (supabase.from("captures") as any)
-      .select("*")
-      .eq("project_id", id)
-      .order("created_at", { ascending: false });
-    setCaptures(data || []);
-  }, [user, id]);
-
-  const fetchMemories = useCallback(async () => {
-    if (!user || !id) return;
-    const { data } = await (supabase.from("memories") as any)
-      .select("*")
-      .eq("project_id", id)
-      .order("created_at", { ascending: false });
-    setMemories(data || []);
-  }, [user, id]);
-
-  useEffect(() => {
-    fetchProject();
-  }, [fetchProject]);
-
-  useEffect(() => {
-    if (project) {
-      fetchCaptures();
-      fetchMemories();
-    }
-  }, [project, fetchCaptures, fetchMemories]);
-
   const handleCapture = async () => {
     if (!user || !captureUrl.trim()) return;
     setCapturing(true);
     setError(null);
 
-    const url = captureUrl.trim();
-    const captureId = crypto.randomUUID();
-
-    const { error: captureError } = await (
-      supabase.from("captures") as any
-    ).insert({
-      id: captureId,
-      user_id: user.id,
-      project_id: id,
-      type: "url",
-      title: url,
-      url: url,
-    });
-
-    if (captureError) {
-      setError(captureError.message);
+    try {
+      await createCapture({
+        userId: user.id,
+        url: captureUrl.trim(),
+        projectId: id,
+      });
+      setCaptureUrl("");
+    } catch (err: any) {
+      setError(err.message || "Failed to capture URL");
+    } finally {
       setCapturing(false);
-      return;
     }
-
-    await (supabase.from("jobs") as any).insert({
-      user_id: user.id,
-      type: "embed",
-      status: "pending",
-      input: JSON.stringify({ capture_id: captureId, url }),
-    });
-
-    setCaptureUrl("");
-    setCapturing(false);
-    fetchCaptures();
   };
 
   const handleSaveSettings = async () => {
-    if (!user || !id) return;
+    if (!id) return;
     setSaving(true);
-    const { error: updateError } = await (supabase.from("projects") as any)
-      .update({
+    setError(null);
+    try {
+      await updateProject(id, {
         title: editTitle.trim(),
         description: editDescription.trim() || null,
         color: editColor,
-      })
-      .eq("id", id);
-
-    if (updateError) {
-      setError(updateError.message);
-    } else {
-      fetchProject();
+      });
+    } catch (err: any) {
+      setError(err.message || "Failed to save");
     }
     setSaving(false);
   };
 
   const handleArchive = async () => {
     if (!id) return;
-    await (supabase.from("projects") as any)
-      .update({ archived: true })
-      .eq("id", id);
+    await archiveProject(id);
     navigate("/projects");
   };
 
   const handleDelete = async () => {
     if (!id) return;
     setDeleting(true);
-    await (supabase.from("projects") as any).delete().eq("id", id);
+    await deleteProject(id);
     setDeleting(false);
     navigate("/projects");
   };
 
-  if (loading) {
-    return <Spinner className="mt-12" />;
-  }
-
   if (!project) {
-    return (
-      <EmptyState
-        title="Project not found"
-        description="This project doesn't exist or you don't have access."
-        action={
-          <Button variant="secondary" onClick={() => navigate("/projects")}>
-            Back to Projects
-          </Button>
-        }
-      />
-    );
+    return <Spinner className="mt-12" />;
   }
 
   const tabs: { key: Tab; label: string }[] = [
@@ -226,6 +117,9 @@ export function ProjectDetailPage() {
     { key: "memories", label: "Memories" },
     { key: "settings", label: "Settings" },
   ];
+
+  const captureList = captures ?? [];
+  const memoryList = memories ?? [];
 
   return (
     <div>
@@ -306,14 +200,14 @@ export function ProjectDetailPage() {
 
           {error && <p className="text-sm text-danger mb-4">{error}</p>}
 
-          {captures.length === 0 ? (
+          {captureList.length === 0 ? (
             <EmptyState
               title="No captures yet"
               description="Paste a URL above to start capturing content for this project."
             />
           ) : (
             <div className="space-y-3">
-              {captures.map((capture) => (
+              {captureList.map((capture: any) => (
                 <Card key={capture.id} hover>
                   <div className="flex items-start gap-3">
                     <div className="w-8 h-8 rounded-lg bg-primary-50 dark:bg-primary-900/30 flex items-center justify-center flex-shrink-0">
@@ -349,17 +243,19 @@ export function ProjectDetailPage() {
 
       {activeTab === "memories" && (
         <div>
-          {memories.length === 0 ? (
+          {memoryList.length === 0 ? (
             <EmptyState
               title="No memories yet"
               description="Memories are extracted from your captures. Capture some content first."
             />
           ) : (
             <div className="space-y-4">
-              {memories.map((memory) => {
+              {memoryList.map((memory: any) => {
                 const metadata =
-                  (memory.metadata as Record<string, unknown>) || {};
-                const confidence = (metadata.confidence as number) || 0;
+                  (typeof memory.metadata === "string"
+                    ? JSON.parse(memory.metadata || "{}")
+                    : memory.metadata) || {};
+                const confidence = Number(metadata.confidence) || 0;
                 const claims = (metadata.key_claims as string[]) || [];
                 const isExpanded = expandedMemory === memory.id;
 
@@ -418,12 +314,12 @@ export function ProjectDetailPage() {
         </div>
       )}
 
-      {activeTab === "settings" && (
+      {activeTab === "settings" && project && (
         <div className="max-w-lg">
           <div className="space-y-4">
             <Input
               label="Title"
-              value={editTitle}
+              value={editTitle || project.title}
               onChange={(e) => setEditTitle(e.target.value)}
             />
             <div>
@@ -431,7 +327,7 @@ export function ProjectDetailPage() {
                 Description
               </label>
               <textarea
-                value={editDescription}
+                value={editDescription || (project.description ?? "")}
                 onChange={(e) => setEditDescription(e.target.value)}
                 rows={3}
                 className="block w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
@@ -448,7 +344,7 @@ export function ProjectDetailPage() {
                     type="button"
                     onClick={() => setEditColor(color)}
                     className={`w-8 h-8 rounded-full cursor-pointer transition-transform ${
-                      editColor === color
+                      (editColor || project.color) === color
                         ? "scale-125 ring-2 ring-offset-2 ring-primary-500"
                         : "hover:scale-110"
                     }`}
