@@ -112,9 +112,9 @@ export function CapturesPage() {
 
     await (supabase.from("jobs") as any).insert({
       user_id: user.id,
-      type: "embed",
+      type: "ingestion",
       status: "pending",
-      input: JSON.stringify({ capture_id: captureId, url }),
+      input: JSON.stringify({ capture_id: captureId, url, user_id: user.id }),
     });
 
     setCaptureUrl("");
