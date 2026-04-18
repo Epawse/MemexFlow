@@ -142,6 +142,74 @@ const AppSchema = new Schema({
     },
     { indexes: { idx_jobs_user_id: ["user_id"], idx_jobs_status: ["status"] } },
   ),
+  memory_associations: new Table(
+    {
+      id: column.text,
+      user_id: column.text,
+      from_memory_id: column.text,
+      to_memory_id: column.text,
+      relation_type: column.text,
+      note: column.text,
+      created_at: column.text,
+    },
+    {
+      indexes: {
+        idx_memory_associations_from: ["from_memory_id"],
+        idx_memory_associations_to: ["to_memory_id"],
+        idx_memory_associations_user: ["user_id"],
+      },
+    },
+  ),
+  brief_memories: new Table(
+    {
+      brief_id: column.text,
+      memory_id: column.text,
+      relevance: column.text,
+    },
+    {
+      indexes: {
+        idx_brief_memories_brief: ["brief_id"],
+        idx_brief_memories_memory: ["memory_id"],
+      },
+    },
+  ),
+  signal_rules: new Table(
+    {
+      id: column.text,
+      user_id: column.text,
+      project_id: column.text,
+      name: column.text,
+      query: column.text,
+      match_type: column.text,
+      is_active: column.integer,
+      last_checked_at: column.text,
+      created_at: column.text,
+      updated_at: column.text,
+    },
+    {
+      indexes: {
+        idx_signal_rules_user: ["user_id"],
+        idx_signal_rules_project: ["project_id"],
+      },
+    },
+  ),
+  signal_matches: new Table(
+    {
+      id: column.text,
+      user_id: column.text,
+      signal_rule_id: column.text,
+      memory_id: column.text,
+      matched_text: column.text,
+      is_dismissed: column.integer,
+      matched_at: column.text,
+    },
+    {
+      indexes: {
+        idx_signal_matches_rule: ["signal_rule_id"],
+        idx_signal_matches_user: ["user_id"],
+      },
+    },
+  ),
 });
 
 // PowerSync connector for Supabase
@@ -243,6 +311,46 @@ class SupabaseConnector implements PowerSyncBackendConnector {
   }
 }
 
+/**
+ * Create FTS5 virtual table + triggers for local memory search.
+ * Safe to call on every init — uses IF NOT EXISTS.
+ */
+async function setupFTS5(db: PowerSyncDatabase) {
+  try {
+    await db.execute(`
+      CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
+        content,
+        summary,
+        content='memories',
+        content_rowid='rowid'
+      )
+    `);
+
+    await db.execute(`
+      CREATE TRIGGER IF NOT EXISTS memories_fts_insert AFTER INSERT ON memories BEGIN
+        INSERT INTO memories_fts(rowid, content, summary) VALUES (new.rowid, new.content, new.summary);
+      END
+    `);
+
+    await db.execute(`
+      CREATE TRIGGER IF NOT EXISTS memories_fts_delete AFTER DELETE ON memories BEGIN
+        INSERT INTO memories_fts(memories_fts, rowid, content, summary) VALUES('delete', old.rowid, old.content, old.summary);
+      END
+    `);
+
+    await db.execute(`
+      CREATE TRIGGER IF NOT EXISTS memories_fts_update AFTER UPDATE ON memories BEGIN
+        INSERT INTO memories_fts(memories_fts, rowid, content, summary) VALUES('delete', old.rowid, old.content, old.summary);
+        INSERT INTO memories_fts(rowid, content, summary) VALUES (new.rowid, new.content, new.summary);
+      END
+    `);
+
+    console.log("[PowerSync] FTS5 index ready");
+  } catch (err) {
+    console.warn("[PowerSync] FTS5 setup skipped (may not be supported):", err);
+  }
+}
+
 let _powerSyncDb: PowerSyncDatabase | null = null;
 let _connector: SupabaseConnector | null = null;
 let _initialized = false;
@@ -303,6 +411,8 @@ export async function initPowerSync() {
 
   await powerSyncDb.connect(connector);
   console.log("[PowerSync] connect() resolved");
+
+  await setupFTS5(powerSyncDb);
 
   if (import.meta.env.DEV) {
     // Expose for ad-hoc debugging: window.__psdb.getAll("SELECT ...")

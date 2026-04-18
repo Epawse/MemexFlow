@@ -2,7 +2,7 @@ import { useQuery } from "@powersync/react";
 import { useState, useEffect, useCallback } from "react";
 import { getPowerSyncDb } from "../lib/powersync";
 import { supabase } from "../lib/supabase";
-import type { Project, Capture, Memory, Job } from "../lib/models";
+import type { Project, Capture, Memory, Job, MemoryAssociation, RelationType, Brief, BriefMemory, SignalRule, SignalMatch } from "../lib/models";
 
 // ---------------------------------------------------------------------------
 // Project queries
@@ -123,6 +123,155 @@ export function useProjectMemories(projectId: string) {
     supabaseQuery,
     [projectId],
   );
+}
+
+// ---------------------------------------------------------------------------
+// Memory search (FTS5)
+// ---------------------------------------------------------------------------
+
+export function useMemorySearch(query: string, userId: string) {
+  const db = getPowerSyncDb();
+  const trimmed = query.trim();
+
+  // FTS5 match query — search content and summary
+  const ftsResult = useQuery(
+    trimmed
+      ? `SELECT m.* FROM memories m
+         JOIN memories_fts fts ON m.rowid = fts.rowid
+         WHERE memories_fts MATCH ? AND m.user_id = ?
+         ORDER BY rank
+         LIMIT 50`
+      : "SELECT * FROM memories WHERE 0",
+    trimmed ? [trimmed, userId] : [],
+  );
+
+  // Supabase fallback: use ilike for basic text search
+  const supabaseQuery = useCallback(async () => {
+    if (!trimmed) return [];
+    const { data, error } = await (supabase.from("memories") as any)
+      .select("*")
+      .eq("user_id", userId)
+      .or(`content.ilike.%${trimmed}%,summary.ilike.%${trimmed}%`)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (error) throw error;
+    return (data ?? []) as Memory[];
+  }, [trimmed, userId]);
+
+  const [fallbackData, setFallbackData] = useState<Memory[]>([]);
+  const [fallbackLoading, setFallbackLoading] = useState(!db && !!trimmed);
+  const [fallbackError, setFallbackError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (db || !trimmed) return;
+    let cancelled = false;
+    setFallbackLoading(true);
+    supabaseQuery()
+      .then((data) => {
+        if (!cancelled) {
+          setFallbackData(data);
+          setFallbackLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setFallbackError(err.message || "Search failed");
+          setFallbackLoading(false);
+        }
+      });
+    return () => { cancelled = true; };
+  }, [db, trimmed, supabaseQuery]);
+
+  if (db) {
+    return {
+      data: (trimmed ? (ftsResult.data ?? []) : []) as Memory[],
+      isLoading: ftsResult.isLoading,
+      error: null as string | null,
+    };
+  }
+
+  return {
+    data: fallbackData,
+    isLoading: fallbackLoading,
+    error: fallbackError,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Memory associations
+// ---------------------------------------------------------------------------
+
+export function useMemoryAssociations(memoryId: string) {
+  const supabaseQuery = useCallback(async () => {
+    const { data, error } = await (supabase.from("memory_associations") as any)
+      .select("*")
+      .or(`from_memory_id.eq.${memoryId},to_memory_id.eq.${memoryId}`);
+    if (error) throw error;
+    return (data ?? []) as MemoryAssociation[];
+  }, [memoryId]);
+
+  return useDataQuery<MemoryAssociation>(
+    `SELECT * FROM memory_associations
+     WHERE from_memory_id = ? OR to_memory_id = ?`,
+    [memoryId, memoryId],
+    supabaseQuery,
+    [memoryId],
+  );
+}
+
+export function useProjectAssociations(userId: string) {
+  const supabaseQuery = useCallback(async () => {
+    const { data, error } = await (supabase.from("memory_associations") as any)
+      .select("*")
+      .eq("user_id", userId);
+    if (error) throw error;
+    return (data ?? []) as MemoryAssociation[];
+  }, [userId]);
+
+  return useDataQuery<MemoryAssociation>(
+    "SELECT * FROM memory_associations WHERE user_id = ?",
+    [userId],
+    supabaseQuery,
+    [userId],
+  );
+}
+
+export async function createAssociation(params: {
+  userId: string;
+  fromMemoryId: string;
+  toMemoryId: string;
+  relationType: RelationType;
+  note?: string;
+}) {
+  const id = crypto.randomUUID();
+  const db = getPowerSyncDb();
+  if (db) {
+    await db.execute(
+      "INSERT INTO memory_associations (id, user_id, from_memory_id, to_memory_id, relation_type, note, created_at) VALUES (?, ?, ?, ?, ?, ?, datetime('now'))",
+      [id, params.userId, params.fromMemoryId, params.toMemoryId, params.relationType, params.note ?? null],
+    );
+  } else {
+    const { error } = await (supabase.from("memory_associations") as any).insert({
+      id,
+      user_id: params.userId,
+      from_memory_id: params.fromMemoryId,
+      to_memory_id: params.toMemoryId,
+      relation_type: params.relationType,
+      note: params.note ?? null,
+    });
+    if (error) throw error;
+  }
+  return id;
+}
+
+export async function deleteAssociation(associationId: string) {
+  const db = getPowerSyncDb();
+  if (db) {
+    await db.execute("DELETE FROM memory_associations WHERE id = ?", [associationId]);
+  } else {
+    const { error } = await (supabase.from("memory_associations") as any).delete().eq("id", associationId);
+    if (error) throw error;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -356,6 +505,270 @@ export async function deleteProject(projectId: string) {
     await db.execute("DELETE FROM projects WHERE id = ?", [projectId]);
   } else {
     await (supabase.from("projects") as any).delete().eq("id", projectId);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Brief queries & mutations
+// ---------------------------------------------------------------------------
+
+export function useProjectBriefs(projectId: string) {
+  const supabaseQuery = useCallback(async () => {
+    const { data, error } = await (supabase.from("briefs") as any)
+      .select("*")
+      .eq("project_id", projectId)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return (data ?? []) as Brief[];
+  }, [projectId]);
+
+  return useDataQuery<Brief>(
+    "SELECT * FROM briefs WHERE project_id = ? ORDER BY created_at DESC",
+    [projectId],
+    supabaseQuery,
+    [projectId],
+  );
+}
+
+export function useAllBriefs(userId: string) {
+  const supabaseQuery = useCallback(async () => {
+    const { data, error } = await (supabase.from("briefs") as any)
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return (data ?? []) as Brief[];
+  }, [userId]);
+
+  return useDataQuery<Brief>(
+    "SELECT * FROM briefs WHERE user_id = ? ORDER BY created_at DESC",
+    [userId],
+    supabaseQuery,
+    [userId],
+  );
+}
+
+export function useBriefCitations(briefId: string) {
+  const supabaseQuery = useCallback(async () => {
+    const { data, error } = await (supabase.from("brief_memories") as any)
+      .select("*")
+      .eq("brief_id", briefId);
+    if (error) throw error;
+    return (data ?? []) as BriefMemory[];
+  }, [briefId]);
+
+  return useDataQuery<BriefMemory>(
+    "SELECT * FROM brief_memories WHERE brief_id = ?",
+    [briefId],
+    supabaseQuery,
+    [briefId],
+  );
+}
+
+export async function createBriefJob(projectId: string, userId: string) {
+  const briefId = crypto.randomUUID();
+  const jobId = crypto.randomUUID();
+  const now = new Date().toISOString();
+  const db = getPowerSyncDb();
+
+  if (db) {
+    await db.execute(
+      "INSERT INTO briefs (id, user_id, project_id, title, content, type, status, metadata, created_at, updated_at) VALUES (?, ?, ?, ?, '', 'project', 'pending', '{}', ?, ?)",
+      [briefId, userId, projectId, "Generating...", now, now],
+    );
+    await db.execute(
+      "INSERT INTO jobs (id, user_id, type, status, input, output, error, created_at, updated_at) VALUES (?, ?, 'briefing', 'pending', ?, '', '', ?, ?)",
+      [jobId, userId, JSON.stringify({ project_id: projectId, user_id: userId, brief_id: briefId }), now, now],
+    );
+  } else {
+    const { error: briefError } = await (supabase.from("briefs") as any).insert({
+      id: briefId,
+      user_id: userId,
+      project_id: projectId,
+      title: "Generating...",
+      content: "",
+      type: "project",
+      status: "pending",
+    });
+    if (briefError) throw briefError;
+    const { error: jobError } = await (supabase.from("jobs") as any).insert({
+      id: jobId,
+      user_id: userId,
+      type: "briefing",
+      status: "pending",
+      input: { project_id: projectId, user_id: userId, brief_id: briefId },
+    });
+    if (jobError) throw jobError;
+  }
+
+  return { briefId, jobId };
+}
+
+export async function deleteBrief(briefId: string) {
+  const db = getPowerSyncDb();
+  if (db) {
+    await db.execute("DELETE FROM briefs WHERE id = ?", [briefId]);
+  } else {
+    const { error } = await (supabase.from("briefs") as any).delete().eq("id", briefId);
+    if (error) throw error;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Signal queries & mutations
+// ---------------------------------------------------------------------------
+
+export function useSignalRules(projectId: string) {
+  const supabaseQuery = useCallback(async () => {
+    const { data, error } = await (supabase.from("signal_rules") as any)
+      .select("*")
+      .eq("project_id", projectId)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return (data ?? []) as SignalRule[];
+  }, [projectId]);
+
+  return useDataQuery<SignalRule>(
+    "SELECT * FROM signal_rules WHERE project_id = ? ORDER BY created_at DESC",
+    [projectId],
+    supabaseQuery,
+    [projectId],
+  );
+}
+
+export function useUndismissedSignalMatches(userId: string) {
+  const supabaseQuery = useCallback(async () => {
+    const { data, error } = await (supabase.from("signal_matches") as any)
+      .select("*")
+      .eq("user_id", userId)
+      .eq("is_dismissed", false)
+      .order("matched_at", { ascending: false })
+      .limit(50);
+    if (error) throw error;
+    return (data ?? []) as SignalMatch[];
+  }, [userId]);
+
+  return useDataQuery<SignalMatch>(
+    "SELECT * FROM signal_matches WHERE user_id = ? AND is_dismissed = 0 ORDER BY matched_at DESC LIMIT 50",
+    [userId],
+    supabaseQuery,
+    [userId],
+  );
+}
+
+export function useUnreadSignalCount(userId: string) {
+  const db = getPowerSyncDb();
+  const countResult = useQuery(
+    "SELECT count(*) as count FROM signal_matches WHERE user_id = ? AND is_dismissed = 0",
+    [userId],
+  );
+
+  const [fallbackCount, setFallbackCount] = useState(0);
+  const [fallbackLoading, setFallbackLoading] = useState(!db);
+
+  useEffect(() => {
+    if (db || !userId) return;
+    let cancelled = false;
+    (supabase.from("signal_matches") as any)
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("is_dismissed", false)
+      .then(({ count, error }: any) => {
+        if (!cancelled && !error) {
+          setFallbackCount(count ?? 0);
+          setFallbackLoading(false);
+        }
+      });
+    return () => { cancelled = true; };
+  }, [db, userId]);
+
+  if (db) {
+    const rows = (countResult.data ?? []) as Array<{ count: number | string }>;
+    return { count: Number(rows[0]?.count ?? 0), isLoading: countResult.isLoading };
+  }
+  return { count: fallbackCount, isLoading: fallbackLoading };
+}
+
+export async function createSignalRule(params: {
+  userId: string;
+  projectId: string;
+  name: string;
+  query: string;
+  matchType?: "keyword" | "regex";
+}) {
+  const id = crypto.randomUUID();
+  const db = getPowerSyncDb();
+  if (db) {
+    await db.execute(
+      "INSERT INTO signal_rules (id, user_id, project_id, name, query, match_type, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, datetime('now'), datetime('now'))",
+      [id, params.userId, params.projectId, params.name, params.query, params.matchType ?? "keyword"],
+    );
+  } else {
+    const { error } = await (supabase.from("signal_rules") as any).insert({
+      id,
+      user_id: params.userId,
+      project_id: params.projectId,
+      name: params.name,
+      query: params.query,
+      match_type: params.matchType ?? "keyword",
+    });
+    if (error) throw error;
+  }
+  return id;
+}
+
+export async function deleteSignalRule(ruleId: string) {
+  const db = getPowerSyncDb();
+  if (db) {
+    await db.execute("DELETE FROM signal_rules WHERE id = ?", [ruleId]);
+  } else {
+    const { error } = await (supabase.from("signal_rules") as any).delete().eq("id", ruleId);
+    if (error) throw error;
+  }
+}
+
+export async function toggleRuleActive(ruleId: string, isActive: boolean) {
+  const db = getPowerSyncDb();
+  if (db) {
+    await db.execute(
+      "UPDATE signal_rules SET is_active = ?, updated_at = datetime('now') WHERE id = ?",
+      [isActive ? 1 : 0, ruleId],
+    );
+  } else {
+    const { error } = await (supabase.from("signal_rules") as any).update({ is_active: isActive }).eq("id", ruleId);
+    if (error) throw error;
+  }
+}
+
+export async function createSignalJob(ruleId: string, userId: string) {
+  const jobId = crypto.randomUUID();
+  const now = new Date().toISOString();
+  const db = getPowerSyncDb();
+  if (db) {
+    await db.execute(
+      "INSERT INTO jobs (id, user_id, type, status, input, output, error, created_at, updated_at) VALUES (?, ?, 'signal', 'pending', ?, '', '', ?, ?)",
+      [jobId, userId, JSON.stringify({ signal_rule_id: ruleId, user_id: userId }), now, now],
+    );
+  } else {
+    const { error } = await (supabase.from("jobs") as any).insert({
+      id: jobId,
+      user_id: userId,
+      type: "signal",
+      status: "pending",
+      input: { signal_rule_id: ruleId, user_id: userId },
+    });
+    if (error) throw error;
+  }
+  return jobId;
+}
+
+export async function dismissMatch(matchId: string) {
+  const db = getPowerSyncDb();
+  if (db) {
+    await db.execute("UPDATE signal_matches SET is_dismissed = 1 WHERE id = ?", [matchId]);
+  } else {
+    const { error } = await (supabase.from("signal_matches") as any).update({ is_dismissed: true }).eq("id", matchId);
+    if (error) throw error;
   }
 }
 
