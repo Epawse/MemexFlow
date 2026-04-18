@@ -6,6 +6,7 @@ import {
   useDashboardStats,
   useRecentCaptures,
   useActiveProjects,
+  useUnreadSignalCount,
 } from "../../hooks/usePowerSyncQueries";
 import { createCapture } from "../../lib/captures";
 import { Card } from "../../shared/components/Card";
@@ -57,6 +58,8 @@ export function DashboardPage() {
       setCapturing(false);
     }
   };
+
+  const signalCount = useUnreadSignalCount(user?.id ?? "");
 
   const statCards = [
     {
@@ -143,6 +146,26 @@ export function DashboardPage() {
               </div>
             ))}
           </div>
+
+          {/* Signal badge */}
+          {signalCount.count > 0 && (
+            <div className="mt-6">
+              <button onClick={() => navigate("/signals")}
+                className="flex items-center gap-3 px-4 py-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors w-full text-left">
+                <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                    {signalCount.count} unread signal match{signalCount.count !== 1 ? "es" : ""}
+                  </p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400">Click to view</p>
+                </div>
+              </button>
+            </div>
+          )}
 
           <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div>

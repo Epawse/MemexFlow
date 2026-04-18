@@ -9,6 +9,7 @@ import { ProjectsPage } from "./features/projects/ProjectsPage";
 import { ProjectDetailPage } from "./features/projects/ProjectDetailPage";
 import { MemoriesPage } from "./features/memories/MemoriesPage";
 import { BriefsPage } from "./features/briefs/BriefsPage";
+import { SignalsPage } from "./features/signals/SignalsPage";
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -54,6 +55,7 @@ function App() {
           <Route path="projects/:id" element={<ProjectDetailPage />} />
           <Route path="memories" element={<MemoriesPage />} />
           <Route path="briefs" element={<BriefsPage />} />
+          <Route path="signals" element={<SignalsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
