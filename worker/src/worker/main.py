@@ -19,7 +19,7 @@ TYPE_MAP = {
     "embed": "ingestion",
     "briefing": "briefing",
     "brief": "briefing",
-    "signal": "extraction",
+    "signal": "signal",
 }
 
 load_dotenv()
