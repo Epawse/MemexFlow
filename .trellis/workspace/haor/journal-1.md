@@ -471,3 +471,107 @@ Finished Phase 1 final two steps (offline sync migration + UI polish) plus five 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 10: Phase 2: Briefs, Signals & Enhanced Memory
+
+**Date**: 2026-04-18
+**Task**: Phase 2: Briefs, Signals & Enhanced Memory
+**Branch**: `main`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+## Phase 2 Implementation — Briefs, Signals & Enhanced Memory
+
+Implemented the intelligence layer on top of the Phase 1 capture-to-memory pipeline.
+
+### Subtask 2A: Enhanced Memory
+| Feature | Description |
+|---------|-------------|
+| FTS5 local search | Search bar on MemoriesPage, queries local FTS5 index via PowerSync triggers |
+| Memory associations | "Link memory" modal with relation types (supports/contradicts/elaborates/related) |
+| Association badges | Memory cards show association counts |
+| Association detail | Click badge → view linked memories, delete associations |
+
+### Subtask 2B: Briefs
+| Feature | Description |
+|---------|-------------|
+| Generate brief | Button on ProjectDetailPage creates brief + briefing job |
+| Brief list | BriefsPage with status cards (pending/processing/completed/failed) |
+| Brief detail | Markdown rendering with clickable [M1] memory citations |
+| Worker handle_briefing | Fetches project memories, generates structured brief with citation markers, writes brief_memories links |
+
+### Subtask 2C: Signals
+| Feature | Description |
+|---------|-------------|
+| Signal rules CRUD | Create/edit/delete keyword monitoring rules per project |
+| "Run now" matching | Triggers worker job to search memories for keyword matches |
+| Signal matches | List with dismiss, matched text snippets |
+| Notification badges | Dashboard + project cards show unread match count |
+| SignalsPage | New route with rule management and match feed |
+
+### DB Migrations (3)
+- `20260418010000_add_memory_associations.sql`
+- `20260418020000_add_brief_memories.sql`
+- `20260418030000_add_signal_rules_matches.sql`
+
+### Quality Pass
+- Removed `any` types → `unknown` with type guards
+- ARIA labels added to interactive buttons
+- Bare `except Exception` → specific exception types
+- Ruff: line length + unused variable fixed
+- DB: removed invalid `updated_at` triggers on tables without the column
+- `console.log` → gated `console.debug` in DEV mode
+
+### Updated Files
+- `src/features/memories/MemoriesPage.tsx` (FTS5 search, association UI)
+- `src/features/briefs/BriefsPage.tsx` (brief list + detail)
+- `src/features/signals/SignalsPage.tsx` (new)
+- `src/features/projects/ProjectDetailPage.tsx` (brief generation, signal rules, tabs)
+- `src/features/dashboard/DashboardPage.tsx` (signal badges)
+- `src/hooks/usePowerSyncQueries.ts` (hooks for associations, briefs, signals, FTS5)
+- `src/lib/models.ts` (new type interfaces)
+- `src/lib/powersync.ts` (sync rules, FTS5 setup, type fixes)
+- `src/lib/database.types.ts` (Row/Insert/Update for new tables)
+- `src/shared/components/DashboardLayout.tsx` (signals nav)
+- `src/App.tsx` (signals route)
+- `worker/src/worker/jobs/handlers.py` (handle_briefing, handle_signal)
+- `worker/src/worker/main.py` (signal type mapping, type fixes)
+- `src/features/auth/LoginPage.tsx` (any→unknown)
+- `src/features/captures/CapturesPage.tsx` (any→unknown)
+- `src/features/projects/ProjectsPage.tsx` (any→unknown)
+
+### Verification
+- `tsc --noEmit` — 0 errors
+- `eslint` — 0 errors, 42 warnings (pre-existing)
+- `ruff check` (Phase 2 code) — 0 errors
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `89eca85` | (see git log) |
+| `fa6f451` | (see git log) |
+| `86c68b3` | (see git log) |
+| `54f70e0` | (see git log) |
+| `5e7979f` | (see git log) |
+| `6a78137` | (see git log) |
+| `24fb685` | (see git log) |
+| `36350c6` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
