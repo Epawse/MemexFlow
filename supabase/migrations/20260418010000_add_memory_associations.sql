@@ -31,9 +31,5 @@ CREATE POLICY "Users can insert own associations" ON public.memory_associations
 CREATE POLICY "Users can delete own associations" ON public.memory_associations
   FOR DELETE USING (auth.uid() = user_id);
 
--- updated_at trigger
-CREATE TRIGGER update_memory_associations_updated_at BEFORE UPDATE ON public.memory_associations
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
 -- Rollback:
 -- DROP TABLE IF EXISTS public.memory_associations;

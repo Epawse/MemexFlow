@@ -56,10 +56,8 @@ CREATE POLICY "Users can update own signal matches" ON public.signal_matches
 CREATE POLICY "Users can delete own signal matches" ON public.signal_matches
   FOR DELETE USING (auth.uid() = user_id);
 
--- Updated_at triggers
+-- Updated_at trigger (only signal_rules has updated_at column)
 CREATE TRIGGER update_signal_rules_updated_at BEFORE UPDATE ON public.signal_rules
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_signal_matches_updated_at BEFORE UPDATE ON public.signal_matches
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Update jobs type constraint to include 'signal'
