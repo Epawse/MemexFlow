@@ -8,7 +8,7 @@ Each handler processes a specific job type:
 """
 
 import json
-from typing import Any
+from typing import TypedDict
 
 import httpx
 
@@ -17,11 +17,36 @@ from ..utils.logging import logger
 from ..utils.supabase import get_supabase
 
 
-async def handle_echo(input_data: dict[str, Any]) -> dict[str, Any]:
+class JobInput(TypedDict, total=False):
+    """Input data for job handlers — keys depend on job type."""
+
+    url: str
+    capture_id: str
+    content: str
+    project_id: str
+    user_id: str
+    brief_id: str
+    signal_rule_id: str
+
+
+class JobOutput(TypedDict, total=False):
+    """Output data from job handlers."""
+
+    echo: object
+    title: str
+    content: str
+    summary: str
+    memories_created: int
+    cited_memory_ids: list[str]
+    matches_found: int
+
+
+async def handle_echo(input_data: dict[str, object]) -> dict[str, object]:
+    """Echo job — returns input as output (test handler)."""
     return {"echo": input_data}
 
 
-async def handle_ingestion(input_data: dict[str, Any]) -> dict[str, Any]:
+async def handle_ingestion(input_data: dict[str, object]) -> dict[str, object]:
     """Ingestion job - fetch URL content and extract clean text.
 
     Input: {"url": "...", "capture_id": "..."}
@@ -43,7 +68,7 @@ async def handle_ingestion(input_data: dict[str, Any]) -> dict[str, Any]:
             )
             if resp.status_code == 200:
                 raw_content = resp.text
-    except Exception as e:
+    except (httpx.HTTPError, httpx.InvalidURL) as e:
         logger.warning("jina_fetch_failed", url=url, error=str(e))
 
     if not raw_content:
@@ -52,7 +77,7 @@ async def handle_ingestion(input_data: dict[str, Any]) -> dict[str, Any]:
                 resp = await client.get(url)
                 resp.raise_for_status()
                 raw_content = resp.text
-        except Exception as e:
+        except httpx.HTTPError as e:
             raise ValueError(f"Failed to fetch URL content: {e}") from e
 
     prompt = f"""Extract the main content from the following web page.
@@ -123,7 +148,7 @@ Return JSON with keys: title, content, summary (1-2 sentence summary)"""
     return result
 
 
-async def handle_extraction(input_data: dict[str, Any]) -> dict[str, Any]:
+async def handle_extraction(input_data: dict[str, object]) -> dict[str, object]:
     """Extraction job - extracts structured claims from content and creates Memory rows.
 
     Input: {"content": "...", "capture_id": "...", "user_id": "...", "project_id": "..."}
@@ -150,7 +175,10 @@ Return JSON array of objects with keys: content, memory_type, confidence"""
 
     response = await call_llm(
         prompt=prompt,
-        system="You are a knowledge extraction assistant. Extract verifiable claims. Always respond with valid JSON array.",
+        system=(
+            "You are a knowledge extraction assistant. "
+            "Extract verifiable claims. Always respond with valid JSON array."
+        ),
         max_tokens=4096,
     )
 
@@ -172,7 +200,7 @@ Return JSON array of objects with keys: content, memory_type, confidence"""
         embedding = None
         try:
             embedding = await generate_embedding(text)
-        except Exception as e:
+        except (ValueError, RuntimeError, OSError) as e:
             logger.warning("embedding_failed", error=str(e))
 
         memory_row = {
@@ -204,14 +232,13 @@ Return JSON array of objects with keys: content, memory_type, confidence"""
     return {"memories_created": created_count}
 
 
-async def handle_briefing(input_data: dict[str, Any]) -> dict[str, Any]:
+async def handle_briefing(input_data: dict[str, object]) -> dict[str, object]:
     """Briefing job - generates a research brief from project memories.
 
     Input: {"project_id": "...", "user_id": "...", "brief_id": "..."}
     Output: {"title": "...", "content": "...", "cited_memory_ids": [...]}
     """
     project_id = input_data.get("project_id", "")
-    user_id = input_data.get("user_id", "")
     brief_id = input_data.get("brief_id", "")
     supabase = get_supabase()
 
@@ -267,7 +294,10 @@ Return JSON with keys: title, content_markdown, cited_memory_ids
 
     response = await call_llm(
         prompt=prompt,
-        system="You are a research assistant. Write clear, evidence-based briefs with proper citations. Always respond with valid JSON.",
+        system=(
+            "You are a research assistant. Write clear, evidence-based briefs "
+            "with proper citations. Always respond with valid JSON."
+        ),
         max_tokens=4096,
     )
 
@@ -324,7 +354,7 @@ Return JSON with keys: title, content_markdown, cited_memory_ids
     }
 
 
-async def handle_signal(input_data: dict[str, Any]) -> dict[str, Any]:
+async def handle_signal(input_data: dict[str, object]) -> dict[str, object]:
     """Signal job — checks a signal rule against memories for keyword matches.
 
     Input: {"signal_rule_id": "...", "user_id": "..."}
