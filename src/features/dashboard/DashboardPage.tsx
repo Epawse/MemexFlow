@@ -50,9 +50,10 @@ export function DashboardPage() {
       toast.success("Capture queued", {
         description: "Content will be extracted shortly.",
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
       toast.error("Failed to capture URL", {
-        description: err.message || "Unknown error",
+        description: msg,
       });
     } finally {
       setCapturing(false);
@@ -150,7 +151,7 @@ export function DashboardPage() {
           {/* Signal badge */}
           {signalCount.count > 0 && (
             <div className="mt-6">
-              <button onClick={() => navigate("/signals")}
+              <button onClick={() => navigate("/signals")} aria-label="View signal matches"
                 className="flex items-center gap-3 px-4 py-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors w-full text-left">
                 <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
                   <svg className="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>

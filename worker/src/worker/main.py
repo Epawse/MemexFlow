@@ -4,8 +4,9 @@ import asyncio
 import json
 import os
 import signal
-from typing import Any
+import types
 
+import httpx
 from dotenv import load_dotenv
 
 from .jobs.handlers import JOB_HANDLERS
@@ -30,7 +31,8 @@ BATCH_SIZE = int(os.environ.get("BATCH_SIZE", "5"))
 running = True
 
 
-def handle_shutdown(signum: int, frame: Any) -> None:
+def handle_shutdown(signum: int, frame: types.FrameType | None) -> None:
+    """Signal handler to gracefully stop the polling loop."""
     global running
     logger.info("shutdown_signal", signal=signum)
     running = False
@@ -40,7 +42,7 @@ signal.signal(signal.SIGINT, handle_shutdown)
 signal.signal(signal.SIGTERM, handle_shutdown)
 
 
-def fetch_pending_jobs() -> list[dict]:
+def fetch_pending_jobs() -> list[dict[str, object]]:
     """Fetch pending jobs from the queue."""
     response = (
         get_supabase().table("jobs")
@@ -65,7 +67,7 @@ def claim_job(job_id: str) -> bool:
     return len(response.data or []) > 0
 
 
-def complete_job(job_id: str, output: dict) -> None:
+def complete_job(job_id: str, output: dict[str, object]) -> None:
     """Mark job as completed with output."""
     get_supabase().table("jobs").update({
         "status": "completed",
@@ -83,7 +85,7 @@ def fail_job(job_id: str, error: str) -> None:
     }).eq("id", job_id).execute()
 
 
-async def process_job(job: dict) -> None:
+async def process_job(job: dict[str, object]) -> None:
     """Process a single job by dispatching to the appropriate handler."""
     job_id = job["id"]
     job_type = job["type"]
@@ -116,7 +118,7 @@ async def process_job(job: dict) -> None:
         result = await handler(input_data)
         complete_job(job_id, result)
         logger.info("job_completed", job_id=job_id, job_type=job_type)
-    except Exception as e:
+    except (ValueError, RuntimeError, OSError, KeyError, TypeError, httpx.HTTPError) as e:
         fail_job(job_id, str(e))
         logger.error("job_failed", job_id=job_id, job_type=job_type, error=str(e))
 
@@ -140,7 +142,7 @@ async def main() -> None:
             else:
                 await asyncio.sleep(POLL_INTERVAL)
 
-        except Exception as e:
+        except (ValueError, RuntimeError, OSError, KeyError, TypeError, httpx.HTTPError) as e:
             logger.error("poll_error", error=str(e))
             await asyncio.sleep(POLL_INTERVAL)
 

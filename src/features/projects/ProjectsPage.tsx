@@ -53,9 +53,10 @@ export function ProjectsPage() {
       toast.success("Project created", {
         description: `"${newTitle.trim()}" is ready.`,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
       toast.error("Failed to create project", {
-        description: err.message || "Unknown error",
+        description: msg,
       });
     } finally {
       setCreating(false);

@@ -66,9 +66,10 @@ export function CapturesPage() {
       toast.success("Capture queued", {
         description: "Content will be extracted shortly.",
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
       toast.error("Failed to capture URL", {
-        description: err.message || "Unknown error",
+        description: msg,
       });
     } finally {
       setCapturing(false);
@@ -109,9 +110,10 @@ export function CapturesPage() {
       toast.success("Retry queued", {
         description: "The capture will be re-processed.",
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
       toast.error("Retry failed", {
-        description: err.message || "Unknown error",
+        description: msg,
       });
     } finally {
       setRetryingId(null);

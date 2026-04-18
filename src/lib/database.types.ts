@@ -269,6 +269,119 @@ export interface Database {
           completed_at?: string | null;
         };
       };
+      memory_associations: {
+        Row: {
+          id: string;
+          user_id: string;
+          from_memory_id: string;
+          to_memory_id: string;
+          relation_type: string;
+          note: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          from_memory_id: string;
+          to_memory_id: string;
+          relation_type: string;
+          note?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          from_memory_id?: string;
+          to_memory_id?: string;
+          relation_type?: string;
+          note?: string | null;
+          created_at?: string;
+        };
+      };
+      brief_memories: {
+        Row: {
+          brief_id: string;
+          memory_id: string;
+          relevance: string | null;
+        };
+        Insert: {
+          brief_id: string;
+          memory_id: string;
+          relevance?: string | null;
+        };
+        Update: {
+          brief_id?: string;
+          memory_id?: string;
+          relevance?: string | null;
+        };
+      };
+      signal_rules: {
+        Row: {
+          id: string;
+          user_id: string;
+          project_id: string | null;
+          name: string;
+          query: string;
+          match_type: string;
+          is_active: boolean;
+          last_checked_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          project_id?: string | null;
+          name: string;
+          query: string;
+          match_type?: string;
+          is_active?: boolean;
+          last_checked_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          project_id?: string | null;
+          name?: string;
+          query?: string;
+          match_type?: string;
+          is_active?: boolean;
+          last_checked_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      signal_matches: {
+        Row: {
+          id: string;
+          user_id: string;
+          signal_rule_id: string;
+          memory_id: string | null;
+          matched_text: string | null;
+          is_dismissed: boolean;
+          matched_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          signal_rule_id: string;
+          memory_id?: string | null;
+          matched_text?: string | null;
+          is_dismissed?: boolean;
+          matched_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          signal_rule_id?: string;
+          memory_id?: string | null;
+          matched_text?: string | null;
+          is_dismissed?: boolean;
+          matched_at?: string;
+        };
+      };
     };
     Functions: {
       match_memories: {

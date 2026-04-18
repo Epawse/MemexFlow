@@ -263,7 +263,7 @@ export function ProjectDetailPage() {
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => navigate("/projects")}
+        <button onClick={() => navigate("/projects")} aria-label="Back to projects"
           className="p-1.5 rounded-md text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer">
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
@@ -284,7 +284,7 @@ export function ProjectDetailPage() {
       <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
         <nav className="-mb-px flex gap-6">
           {tabs.map((tab) => (
-            <button key={tab.key} onClick={() => { setActiveTab(tab.key); setSelectedBriefId(null); }}
+            <button key={tab.key} onClick={() => { setActiveTab(tab.key); setSelectedBriefId(null); }} aria-label={`${tab.label} tab`}
               className={`pb-3 text-sm font-medium border-b-2 transition-colors cursor-pointer ${
                 activeTab === tab.key
                   ? "border-primary-600 text-primary-600 dark:border-primary-400 dark:text-primary-400"
@@ -483,7 +483,7 @@ export function ProjectDetailPage() {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Color</label>
               <div className="flex gap-2">
                 {PROJECT_COLORS.map((color) => (
-                  <button key={color} type="button" onClick={() => setEditColor(color)}
+                  <button key={color} type="button" onClick={() => setEditColor(color)} aria-label={`Select color ${color}`}
                     className={`w-8 h-8 rounded-full cursor-pointer transition-transform ${
                       (editColor || project.color) === color ? "scale-125 ring-2 ring-offset-2 ring-primary-500" : "hover:scale-110"
                     }`} style={{ backgroundColor: color }} />
@@ -693,7 +693,7 @@ function BriefDetail({
   if (brief.status === "failed") {
     return (
       <div>
-        <button onClick={onBack} className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4 cursor-pointer">
+        <button onClick={onBack} aria-label="Back to briefs" className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4 cursor-pointer">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
           </svg>

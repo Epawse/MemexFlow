@@ -227,14 +227,14 @@ class SupabaseConnector implements PowerSyncBackendConnector {
     }
 
     const token = session.data.session.access_token;
-    console.log(
-      "[PowerSync] fetchCredentials OK — user:",
-      session.data.session.user.email,
-      "endpoint:",
-      endpoint,
-      "token length:",
-      token.length,
-    );
+    if (import.meta.env.DEV) {
+      console.debug(
+        "[PowerSync] fetchCredentials OK — user:",
+        session.data.session.user.email,
+        "endpoint:",
+        endpoint,
+      );
+    }
     return { endpoint, token };
   }
 
@@ -345,7 +345,7 @@ async function setupFTS5(db: PowerSyncDatabase) {
       END
     `);
 
-    console.log("[PowerSync] FTS5 index ready");
+    if (import.meta.env.DEV) console.debug("[PowerSync] FTS5 index ready");
   } catch (err) {
     console.warn("[PowerSync] FTS5 setup skipped (may not be supported):", err);
   }
@@ -393,7 +393,7 @@ export function getConnector(): SupabaseConnector | null {
 
 export async function initPowerSync() {
   if (_initialized) {
-    console.log("[PowerSync] Already initialized, skipping");
+    if (import.meta.env.DEV) console.debug("[PowerSync] Already initialized, skipping");
     return;
   }
   _initialized = true;
@@ -407,10 +407,10 @@ export async function initPowerSync() {
   }
 
   await powerSyncDb.init();
-  console.log("[PowerSync] Database initialized, connecting...");
+  if (import.meta.env.DEV) console.debug("[PowerSync] Database initialized, connecting...");
 
   await powerSyncDb.connect(connector);
-  console.log("[PowerSync] connect() resolved");
+  if (import.meta.env.DEV) console.debug("[PowerSync] connect() resolved");
 
   await setupFTS5(powerSyncDb);
 
@@ -421,14 +421,16 @@ export async function initPowerSync() {
 
   powerSyncDb.registerListener({
     statusChanged: (status) => {
-      console.log("[PowerSync] Status:", {
-        connected: status.connected,
-        connecting: status.connecting,
-        hasSynced: status.hasSynced,
-        uploading: status.dataFlowStatus?.uploading,
-        downloading: status.dataFlowStatus?.downloading,
-        downloadError: status.dataFlowStatus?.downloadError?.message,
-      });
+      if (import.meta.env.DEV) {
+        console.debug("[PowerSync] Status:", {
+          connected: status.connected,
+          connecting: status.connecting,
+          hasSynced: status.hasSynced,
+          uploading: status.dataFlowStatus?.uploading,
+          downloading: status.dataFlowStatus?.downloading,
+          downloadError: status.dataFlowStatus?.downloadError?.message,
+        });
+      }
     },
   });
 }
