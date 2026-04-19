@@ -1,7 +1,7 @@
 {
   "name": "04-19-phase3-candidate-signals-recall",
   "title": "Phase 3: Candidate Confirmation, External Signals, Recall Loop",
-  "status": "in_progress",
+  "status": "completed",
   "priority": "P0",
   "assignee": "haor",
   "created_at": "2026-04-18",
@@ -22,5 +22,6 @@
       "description": "Add recalls table, recall heuristic job, recall page with revisit/dismiss actions",
       "status": "pending"
     }
-  ]
+  ],
+  "completedAt": "2026-04-19"
 }
