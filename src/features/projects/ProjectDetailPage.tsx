@@ -337,7 +337,7 @@ export function ProjectDetailPage() {
           ) : (
             <div className="space-y-3">
               {captureList.map((capture) => (
-                <Card key={capture.id} hover>
+                <Card key={capture.id} hover onClick={() => navigate(`/captures/${capture.id}`)}>
                   <div className="flex items-start gap-3">
                     <div className="w-8 h-8 rounded-lg bg-primary-50 dark:bg-primary-900/30 flex items-center justify-center flex-shrink-0">
                       <svg className="w-4 h-4 text-primary-600 dark:text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>

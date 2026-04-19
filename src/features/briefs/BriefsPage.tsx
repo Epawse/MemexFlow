@@ -89,11 +89,7 @@ export function BriefsPage() {
           <Card
             key={brief.id}
             hover
-            onClick={() => {
-              if (brief.project_id) {
-                navigate(`/projects/${brief.project_id}?tab=briefs&brief=${brief.id}`);
-              }
-            }}
+            onClick={() => navigate(`/briefs/${brief.id}`)}
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">

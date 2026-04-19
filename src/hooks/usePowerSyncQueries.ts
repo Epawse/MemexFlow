@@ -49,6 +49,42 @@ export function useProject(projectId: string) {
 // Capture queries
 // ---------------------------------------------------------------------------
 
+export function useCapture(captureId: string) {
+  const supabaseQuery = useCallback(async () => {
+    const { data, error } = await (supabase.from("captures") as any)
+      .select("*")
+      .eq("id", captureId)
+      .single();
+    if (error) throw error;
+    return (data ? [data] : []) as Capture[];
+  }, [captureId]);
+
+  return useDataQuery<Capture>(
+    "SELECT * FROM captures WHERE id = ?",
+    [captureId],
+    supabaseQuery,
+    [captureId],
+  );
+}
+
+export function useCaptureMemories(captureId: string) {
+  const supabaseQuery = useCallback(async () => {
+    const { data, error } = await (supabase.from("memories") as any)
+      .select("*")
+      .eq("capture_id", captureId)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return (data ?? []) as Memory[];
+  }, [captureId]);
+
+  return useDataQuery<Memory>(
+    "SELECT * FROM memories WHERE capture_id = ? ORDER BY created_at DESC",
+    [captureId],
+    supabaseQuery,
+    [captureId],
+  );
+}
+
 export function useCaptures(userId: string) {
   const supabaseQuery = useCallback(async () => {
     const { data, error } = await (supabase.from("captures") as any)
