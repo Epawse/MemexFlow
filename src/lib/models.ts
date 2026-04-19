@@ -71,3 +71,20 @@ export interface SignalDiscovery {
   capture_id: string | null;
   discovered_at: string;
 }
+
+export type RecallReason = "time_based" | "project_active" | "association_dense" | "signal_triggered";
+export type RecallPriority = "low" | "medium" | "high";
+
+export interface Recall {
+  id: string;
+  user_id: string;
+  project_id: string | null;
+  memory_id: string;
+  reason: RecallReason;
+  priority: RecallPriority;
+  reason_detail: string | null;
+  scheduled_at: string;
+  revisited_at: string | null;
+  dismissed_at: string | null;
+  created_at: string;
+}

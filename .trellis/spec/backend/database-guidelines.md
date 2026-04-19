@@ -192,7 +192,7 @@ signal_discoveries
 
 External content found by signal channel adapters (RSS, GitHub). User can "Capture" a discovery, creating a capture row that enters the candidate confirmation flow (3A).
 
-### [Phase 3] recalls (NEW table)
+### [Current] recalls
 
 ```
 recalls
@@ -217,7 +217,7 @@ Proactive knowledge recall. The system identifies memories worth revisiting and 
 jobs
 ├── id UUID PRIMARY KEY DEFAULT gen_random_uuid()
 ├── user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE
-├── type TEXT NOT NULL CHECK (type IN ('ingestion', 'extraction', 'embed', 'briefing', 'brief', 'signal', 'echo'))
+├── type TEXT NOT NULL CHECK (type IN ('ingestion', 'extraction', 'embed', 'briefing', 'brief', 'signal', 'signal_scan', 'confirm', 'recall', 'echo'))
 ├── status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed'))
 ├── input JSONB NOT NULL
 ├── output JSONB
@@ -228,10 +228,10 @@ jobs
 ├── completed_at TIMESTAMPTZ
 ```
 
-### [Phase 3] jobs (planned type additions)
+### [Current] jobs type additions
 
 ```
-type CHECK constraint adds: 'signal_scan', 'recall'
+type CHECK constraint includes: 'signal_scan', 'confirm', 'recall'
 ```
 
 ### [Current] signals (DEPRECATED)

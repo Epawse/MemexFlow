@@ -8,6 +8,10 @@ import {
   useActiveProjects,
   useUnreadSignalCount,
   usePendingCaptureCount,
+  usePendingRecalls,
+  useRecallCount,
+  revisitRecall,
+  dismissRecall,
 } from "../../hooks/usePowerSyncQueries";
 import { createCapture } from "../../lib/captures";
 import { Card } from "../../shared/components/Card";
@@ -63,6 +67,9 @@ export function DashboardPage() {
 
   const signalCount = useUnreadSignalCount(user?.id ?? "");
   const pendingCaptureCount = usePendingCaptureCount(user?.id ?? "");
+  const recallCount = useRecallCount(user?.id ?? "");
+  const { data: recallSuggestions } = usePendingRecalls(user?.id ?? "");
+  const topRecalls = (recallSuggestions ?? []).slice(0, 3);
 
   const statCards = [
     {
@@ -188,6 +195,60 @@ export function DashboardPage() {
                   <p className="text-xs text-primary-600 dark:text-primary-400">Confirm to extract memories</p>
                 </div>
               </button>
+            </div>
+          )}
+
+          {/* Recall suggestions */}
+          {recallCount.count > 0 && (
+            <div className={(signalCount.count > 0 || pendingCaptureCount.count > 0) ? "mt-4" : "mt-6"}>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Memories to revisit
+                </h3>
+                <Button variant="text" size="sm" onClick={() => navigate("/recall")}>
+                  View all
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {topRecalls.map((recall) => (
+                  <Card key={recall.id}>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                            recall.priority === "high"
+                              ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                              : recall.priority === "medium"
+                                ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                                : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400"
+                          }`}>
+                            {recall.priority}
+                          </span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {recall.reason === "time_based" ? "Not reviewed in 30+ days"
+                              : recall.reason === "project_active" ? "Project recently active"
+                              : recall.reason === "association_dense" ? "Many connections"
+                              : "Signal match"}
+                          </span>
+                        </div>
+                        {recall.reason_detail && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                            {recall.reason_detail}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex gap-1.5 flex-shrink-0">
+                        <Button variant="primary" size="sm" onClick={async () => { await revisitRecall(recall.id); }}>
+                          Revisit
+                        </Button>
+                        <Button variant="text" size="sm" onClick={async () => { await dismissRecall(recall.id); }}>
+                          Dismiss
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
             </div>
           )}
 

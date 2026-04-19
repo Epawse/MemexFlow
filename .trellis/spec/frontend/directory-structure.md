@@ -86,23 +86,23 @@ src-tauri/                           # Tauri Rust backend (scaffolded)
 
 ## [Phase 3] Implemented (2026-04-19)
 
-Phase 3A (Candidate Confirmation) and 3B (External Signals) are implemented.
+Phase 3A (Candidate Confirmation), 3B (External Signals), and 3C (Recall Loop) are all implemented.
 
 ```
 src/features/
 ├── captures/
 │   ├── CapturesPage.tsx           # Enhanced with status tabs (pending/confirmed/ignored)
 │   └── CaptureConfirmModal.tsx     # Confirm/ignore candidate captures
-└── signals/
-    └── SignalsPage.tsx            # Tabbed view: Matches | Discoveries, channel type selector
+├── signals/
+│   └── SignalsPage.tsx            # Tabbed view: Matches | Discoveries, channel type selector
+└── recall/
+    └── RecallPage.tsx             # Pending recalls with Revisit/Dismiss actions
 ```
 
 Implemented:
 - **Candidate confirmation** — status tabs on CapturesPage, confirm/ignore actions
 - **External signals** — channel type selector (Internal/RSS/GitHub) on ProjectDetailPage, discoveries tab on SignalsPage
-
-Remaining:
-- **Recall** — new `/recall` route with revisit/dismiss actions (Phase 3C)
+- **Recall loop** — `/recall` route, dashboard suggestions, recall job worker handler
 
 ---
 

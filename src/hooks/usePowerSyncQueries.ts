@@ -2,7 +2,7 @@ import { useQuery } from "@powersync/react";
 import { useState, useEffect, useCallback } from "react";
 import { getPowerSyncDb } from "../lib/powersync";
 import { supabase } from "../lib/supabase";
-import type { Project, Capture, Memory, Job, MemoryAssociation, RelationType, Brief, BriefMemory, SignalRule, SignalMatch, SignalDiscovery, CaptureStatus, ChannelType } from "../lib/models";
+import type { Project, Capture, Memory, Job, MemoryAssociation, RelationType, Brief, BriefMemory, SignalRule, SignalMatch, SignalDiscovery, CaptureStatus, ChannelType, Recall } from "../lib/models";
 
 // ---------------------------------------------------------------------------
 // Project queries
@@ -945,7 +945,121 @@ export async function createSignalScanJob(ruleId: string, userId: string) {
 }
 
 // ---------------------------------------------------------------------------
-// Internal: dual-path data hook
+// Recall queries & mutations
+// ---------------------------------------------------------------------------
+
+export function usePendingRecalls(userId: string) {
+  const supabaseQuery = useCallback(async () => {
+    const { data, error } = await (supabase.from("recalls") as any)
+      .select("*")
+      .eq("user_id", userId)
+      .is_("dismissed_at", null)
+      .is_("revisited_at", null)
+      .order("priority", { ascending: false })
+      .order("scheduled_at", { ascending: false })
+      .limit(50);
+    if (error) throw error;
+    return (data ?? []) as Recall[];
+  }, [userId]);
+
+  return useDataQuery<Recall>(
+    "SELECT * FROM recalls WHERE user_id = ? AND dismissed_at IS NULL AND revisited_at IS NULL ORDER BY CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 WHEN 'low' THEN 2 END, scheduled_at DESC LIMIT 50",
+    [userId],
+    supabaseQuery,
+    [userId],
+  );
+}
+
+export function useRecallCount(userId: string) {
+  const db = getPowerSyncDb();
+  const countResult = useQuery(
+    "SELECT count(*) as count FROM recalls WHERE user_id = ? AND dismissed_at IS NULL AND revisited_at IS NULL",
+    [userId],
+  );
+
+  const [fallbackCount, setFallbackCount] = useState(0);
+  const [fallbackLoading, setFallbackLoading] = useState(!db);
+
+  useEffect(() => {
+    if (db || !userId) return;
+    let cancelled = false;
+    (supabase.from("recalls") as any)
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .is_("dismissed_at", null)
+      .is_("revisited_at", null)
+      .then(({ count, error }: any) => {
+        if (!cancelled && !error) {
+          setFallbackCount(count ?? 0);
+          setFallbackLoading(false);
+        }
+      });
+    return () => { cancelled = true; };
+  }, [db, userId]);
+
+  if (db) {
+    const rows = (countResult.data ?? []) as Array<{ count: number | string }>;
+    return { count: Number(rows[0]?.count ?? 0), isLoading: countResult.isLoading };
+  }
+  return { count: fallbackCount, isLoading: fallbackLoading };
+}
+
+export async function revisitRecall(recallId: string) {
+  const db = getPowerSyncDb();
+  const now = new Date().toISOString();
+  if (db) {
+    await db.execute(
+      "UPDATE recalls SET revisited_at = ? WHERE id = ?",
+      [now, recallId],
+    );
+  } else {
+    const { error } = await (supabase.from("recalls") as any)
+      .update({ revisited_at: now })
+      .eq("id", recallId);
+    if (error) throw error;
+  }
+}
+
+export async function dismissRecall(recallId: string) {
+  const db = getPowerSyncDb();
+  const now = new Date().toISOString();
+  if (db) {
+    await db.execute(
+      "UPDATE recalls SET dismissed_at = ? WHERE id = ?",
+      [now, recallId],
+    );
+  } else {
+    const { error } = await (supabase.from("recalls") as any)
+      .update({ dismissed_at: now })
+      .eq("id", recallId);
+    if (error) throw error;
+  }
+}
+
+export async function createRecallJob(userId: string, projectId?: string) {
+  const jobId = crypto.randomUUID();
+  const now = new Date().toISOString();
+  const input: Record<string, string> = { user_id: userId };
+  if (projectId) input.project_id = projectId;
+  const db = getPowerSyncDb();
+  if (db) {
+    await db.execute(
+      "INSERT INTO jobs (id, user_id, type, status, input, output, error, created_at, updated_at) VALUES (?, ?, 'recall', 'pending', ?, '', '', ?, ?)",
+      [jobId, userId, JSON.stringify(input), now, now],
+    );
+  } else {
+    const { error } = await (supabase.from("jobs") as any).insert({
+      id: jobId,
+      user_id: userId,
+      type: "recall",
+      status: "pending",
+      input,
+    });
+    if (error) throw error;
+  }
+  return jobId;
+}
+
 // ---------------------------------------------------------------------------
 // Internal: dual-path data hook
 // ---------------------------------------------------------------------------

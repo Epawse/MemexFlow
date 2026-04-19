@@ -12,9 +12,9 @@ from typing import TypedDict
 
 import httpx
 
-from ..channels.base import BaseChannel, DiscoveryItem
-from ..channels.rss import RSSChannel
+from ..channels.base import BaseChannel
 from ..channels.github_releases import GitHubReleasesChannel
+from ..channels.rss import RSSChannel
 from ..utils.llm import call_llm, generate_embedding
 from ..utils.logging import logger
 from ..utils.supabase import get_supabase
@@ -565,6 +565,210 @@ async def handle_signal_scan(input_data: dict[str, object]) -> dict[str, object]
     return {"discoveries_found": len(items), "new_discoveries": len(new_items)}
 
 
+async def handle_recall(input_data: dict[str, object]) -> dict[str, object]:
+    """Find memories worth revisiting and create recall suggestions."""
+    user_id = input_data.get("user_id", "")
+    project_id = input_data.get("project_id")  # optional filter
+    supabase = get_supabase()
+
+    if not user_id:
+        raise ValueError("user_id is required")
+
+    candidates: list[dict[str, object]] = []
+
+    # 1. Time-based: memories older than 30 days with no recall
+    old_memories = (
+        supabase.table("memories")
+        .select("id, content, summary, project_id, created_at, metadata")
+        .eq("user_id", user_id)
+        .lt("created_at", "now() - interval '30 days'")
+        .limit(50)
+        .execute()
+        .data or []
+    )
+    for m in old_memories:
+        existing = (
+            supabase.table("recalls")
+            .select("id")
+            .eq("memory_id", m["id"])
+            .is_("dismissed_at", "null")
+            .execute()
+            .data or []
+        )
+        if not existing:
+            candidates.append({
+                "memory_id": m["id"],
+                "project_id": m.get("project_id"),
+                "reason": "time_based",
+                "priority": "medium",
+                "reason_detail": "Not reviewed in over 30 days",
+            })
+
+    # 2. Project-active: memories in recently-updated projects
+    active_projects = (
+        supabase.table("projects")
+        .select("id")
+        .eq("user_id", user_id)
+        .eq("archived", False)
+        .gt("updated_at", "now() - interval '7 days'")
+        .limit(10)
+        .execute()
+        .data or []
+    )
+    active_project_ids = [p["id"] for p in active_projects]
+    if active_project_ids:
+        project_memories = (
+            supabase.table("memories")
+            .select("id, content, summary, project_id, created_at, metadata")
+            .eq("user_id", user_id)
+            .in_("project_id", active_project_ids)
+            .limit(30)
+            .execute()
+            .data or []
+        )
+        for m in project_memories:
+            existing = (
+                supabase.table("recalls")
+                .select("id")
+                .eq("memory_id", m["id"])
+                .is_("dismissed_at", "null")
+                .execute()
+                .data or []
+            )
+            if not existing:
+                candidates.append({
+                    "memory_id": m["id"],
+                    "project_id": m.get("project_id"),
+                    "reason": "project_active",
+                    "priority": "high",
+                    "reason_detail": "Project has recent activity",
+                })
+
+    # 3. Association-dense: memories with 3+ associations
+    all_associations = (
+        supabase.table("memory_associations")
+        .select("from_memory_id, to_memory_id")
+        .eq("user_id", user_id)
+        .limit(200)
+        .execute()
+        .data or []
+    )
+    association_counts: dict[str, int] = {}
+    for a in all_associations:
+        association_counts[a["from_memory_id"]] = association_counts.get(a["from_memory_id"], 0) + 1
+        association_counts[a["to_memory_id"]] = association_counts.get(a["to_memory_id"], 0) + 1
+    dense_memory_ids = [mid for mid, cnt in association_counts.items() if cnt >= 3]
+    if dense_memory_ids:
+        dense_memories = (
+            supabase.table("memories")
+            .select("id, content, summary, project_id, created_at, metadata")
+            .in_("id", dense_memory_ids)
+            .eq("user_id", user_id)
+            .limit(20)
+            .execute()
+            .data or []
+        )
+        for m in dense_memories:
+            existing = (
+                supabase.table("recalls")
+                .select("id")
+                .eq("memory_id", m["id"])
+                .is_("dismissed_at", "null")
+                .execute()
+                .data or []
+            )
+            if not existing:
+                candidates.append({
+                    "memory_id": m["id"],
+                    "project_id": m.get("project_id"),
+                    "reason": "association_dense",
+                    "priority": "low",
+                    "reason_detail": f"Connected to {association_counts[m['id']]} other memories",
+                })
+
+    # 4. Signal-triggered: memories that recently matched signal rules
+    recent_matches = (
+        supabase.table("signal_matches")
+        .select("memory_id")
+        .eq("user_id", user_id)
+        .eq("is_dismissed", False)
+        .gt("matched_at", "now() - interval '7 days'")
+        .limit(30)
+        .execute()
+        .data or []
+    )
+    signal_memory_ids = list({m["memory_id"] for m in recent_matches if m.get("memory_id")})
+    if signal_memory_ids:
+        signal_memories = (
+            supabase.table("memories")
+            .select("id, content, summary, project_id, created_at, metadata")
+            .in_("id", signal_memory_ids)
+            .limit(20)
+            .execute()
+            .data or []
+        )
+        for m in signal_memories:
+            existing = (
+                supabase.table("recalls")
+                .select("id")
+                .eq("memory_id", m["id"])
+                .is_("dismissed_at", "null")
+                .execute()
+                .data or []
+            )
+            if not existing:
+                candidates.append({
+                    "memory_id": m["id"],
+                    "project_id": m.get("project_id"),
+                    "reason": "signal_triggered",
+                    "priority": "medium",
+                    "reason_detail": "Recently matched a signal rule",
+                })
+
+    # Deduplicate by memory_id (keep highest priority)
+    seen: dict[str, dict[str, object]] = {}
+    priority_order = {"high": 0, "medium": 1, "low": 2}
+    for c in candidates:
+        mid = c["memory_id"]
+        if mid not in seen or priority_order.get(
+            c["priority"], 2,
+        ) < priority_order.get(seen[mid].get("priority", "low"), 2):
+            seen[mid] = c
+
+    unique_candidates = list(seen.values())
+
+    # Optional project filter
+    if project_id:
+        unique_candidates = [
+            c for c in unique_candidates
+            if c.get("project_id") == project_id or c.get("project_id") is None
+        ]
+
+    # Insert recall rows
+    inserted = 0
+    for c in unique_candidates[:20]:  # Cap at 20 suggestions per run
+        try:
+            supabase.table("recalls").insert({
+                "user_id": user_id,
+                "project_id": c.get("project_id"),
+                "memory_id": c["memory_id"],
+                "reason": c["reason"],
+                "priority": c["priority"],
+                "reason_detail": c.get("reason_detail"),
+            }).execute()
+            inserted += 1
+        except Exception:
+            logger.warning("recall_insert_failed", memory_id=c["memory_id"])
+
+    logger.info(
+        "recall_complete",
+        user_id=user_id,
+        candidates_found=len(unique_candidates),
+        recalls_created=inserted,
+    )
+    return {"candidates_found": len(unique_candidates), "recalls_created": inserted}
+
+
 # Job type to handler mapping
 JOB_HANDLERS = {
     "echo": handle_echo,
@@ -573,4 +777,5 @@ JOB_HANDLERS = {
     "briefing": handle_briefing,
     "signal": handle_signal,
     "signal_scan": handle_signal_scan,
+    "recall": handle_recall,
 }

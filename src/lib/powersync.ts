@@ -239,6 +239,27 @@ const AppSchema = new Schema({
       },
     },
   ),
+  recalls: new Table(
+    {
+      id: column.text,
+      user_id: column.text,
+      project_id: column.text,
+      memory_id: column.text,
+      reason: column.text,
+      priority: column.text,
+      reason_detail: column.text,
+      scheduled_at: column.text,
+      revisited_at: column.text,
+      dismissed_at: column.text,
+      created_at: column.text,
+    },
+    {
+      indexes: {
+        idx_recalls_user: ["user_id"],
+        idx_recalls_memory: ["memory_id"],
+      },
+    },
+  ),
 });
 
 // PowerSync connector for Supabase
@@ -530,7 +551,7 @@ export async function debugPowerSyncTables() {
 
   const tables = [
     "projects", "captures", "memories", "briefs", "signals",
-    "signal_rules", "signal_matches", "signal_discoveries",
+    "signal_rules", "signal_matches", "signal_discoveries", "recalls",
     "memory_associations", "brief_memories", "jobs",
   ];
 
