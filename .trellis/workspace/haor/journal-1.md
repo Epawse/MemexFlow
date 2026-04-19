@@ -659,3 +659,61 @@ Updated Trellis specs to reflect reality ([Current]/[Phase 3]/[Planned] markers)
 ### Next Steps
 
 - None - task complete
+
+
+## Session 13: Phase 3C: Recall Loop
+
+**Date**: 2026-04-19
+**Task**: Phase 3C: Recall Loop
+**Branch**: `main`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| Layer | Feature | Description |
+|-------|---------|-------------|
+| DB | recalls table | Migration with RLS, indexes, reason/priority constraints |
+| Worker | handle_recall | 4 heuristics: time_based, project_active, association_dense, signal_triggered |
+| Frontend | RecallPage | `/recall` route with revisit/dismiss actions, priority badges |
+| Frontend | Dashboard | "Memories to revisit" section showing top 3 recall suggestions |
+| Frontend | Nav | "Recall" nav item with clock icon |
+| Types | Recall model | RecallReason, RecallPriority, Recall interface in models.ts |
+| Hooks | Recall queries | usePendingRecalls, useRecallCount, revisitRecall, dismissRecall, createRecallJob |
+| Sync | PowerSync | recalls table added to schema + replication list |
+| Spec | DB guidelines | Updated recalls from [Phase 3] → [Current], jobs type constraint updated |
+| Spec | Dir structure | Updated Phase 3 section to include recall |
+
+**Key files changed**:
+- `supabase/migrations/20260419020000_add_recalls.sql`
+- `worker/src/worker/jobs/handlers.py` (handle_recall + TYPE_MAP)
+- `worker/src/worker/main.py` (recall in TYPE_MAP)
+- `src/lib/models.ts` (Recall type)
+- `src/lib/powersync.ts` (recalls table + replication)
+- `src/hooks/usePowerSyncQueries.ts` (5 recall hooks/mutations)
+- `src/features/recall/RecallPage.tsx` (new)
+- `src/features/dashboard/DashboardPage.tsx` (recall suggestions)
+- `src/App.tsx` + `src/shared/components/DashboardLayout.tsx` (route + nav)
+
+Phase 3 is now fully complete (3A: Candidate Confirmation, 3B: External Signals, 3C: Recall Loop).
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7351576` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
