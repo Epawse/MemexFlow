@@ -1,6 +1,0 @@
-{"file": ".trellis/workflow.md", "reason": "Project workflow and conventions"}
-{"file": ".trellis/spec/backend/index.md", "reason": "Backend development guide"}
-{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend development guide"}
-{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "New tables: memory_associations, brief_memories, signal_rules, signal_matches"}
-{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "Feature module structure for briefs/signals"}
-{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "TypeScript strict, no any, error/loading states"}

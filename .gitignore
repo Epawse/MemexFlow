@@ -46,14 +46,22 @@ lerna-debug.log*
 *.sln
 *.sw?
 
-# Trellis workspace (local dev state)
-.trellis/workspace/
+# Trellis
+.trellis/
+
+# Claude / Opencode local config
+.claude/
+.opencode/
 
 # Ruff cache
 .ruff_cache/
 
-# Opencode local config
-.opencode/
+# Strategy & planning docs (not for public repo)
+KnowledgeClaw.md
+MemexFlow-2026Q2-Strategy.md
+
+# Internal docs (troubleshooting etc.)
+docs/
 
 # OS
 Thumbs.db
