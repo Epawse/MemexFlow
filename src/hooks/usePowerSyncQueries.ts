@@ -2,7 +2,7 @@ import { useQuery } from "@powersync/react";
 import { useState, useEffect, useCallback } from "react";
 import { getPowerSyncDb } from "../lib/powersync";
 import { supabase } from "../lib/supabase";
-import type { Project, Capture, Memory, Job, MemoryAssociation, RelationType, Brief, BriefMemory, SignalRule, SignalMatch } from "../lib/models";
+import type { Project, Capture, Memory, Job, MemoryAssociation, RelationType, Brief, BriefMemory, SignalRule, SignalMatch, CaptureStatus } from "../lib/models";
 
 // ---------------------------------------------------------------------------
 // Project queries
@@ -83,6 +83,62 @@ export function useProjectCaptures(projectId: string) {
     supabaseQuery,
     [projectId],
   );
+}
+
+export function useCapturesByStatus(userId: string, status: CaptureStatus | null) {
+  const supabaseQuery = useCallback(async () => {
+    let query = supabase
+      .from("captures")
+      .select("*")
+      .eq("user_id", userId);
+    if (status) {
+      query = query.eq("status", status);
+    }
+    const { data, error } = await query.order("created_at", { ascending: false });
+    if (error) throw error;
+    return (data ?? []) as Capture[];
+  }, [userId, status]);
+
+  const sql = status
+    ? "SELECT * FROM captures WHERE user_id = ? AND status = ? ORDER BY created_at DESC"
+    : "SELECT * FROM captures WHERE user_id = ? ORDER BY created_at DESC";
+  const params = status ? [userId, status] : [userId];
+
+  return useDataQuery<Capture>(sql, params, supabaseQuery, [userId, status]);
+}
+
+export function usePendingCaptureCount(userId: string) {
+  const db = getPowerSyncDb();
+  const countResult = useQuery(
+    "SELECT count(*) as count FROM captures WHERE user_id = ? AND status = 'pending'",
+    [userId],
+  );
+
+  const [fallbackCount, setFallbackCount] = useState(0);
+  const [fallbackLoading, setFallbackLoading] = useState(!db);
+
+  useEffect(() => {
+    if (db || !userId) return;
+    let cancelled = false;
+    supabase
+      .from("captures")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("status", "pending")
+      .then(({ count, error }) => {
+        if (!cancelled && !error) {
+          setFallbackCount(count ?? 0);
+          setFallbackLoading(false);
+        }
+      });
+    return () => { cancelled = true; };
+  }, [db, userId]);
+
+  if (db) {
+    const rows = (countResult.data ?? []) as Array<{ count: number | string }>;
+    return { count: Number(rows[0]?.count ?? 0), isLoading: countResult.isLoading };
+  }
+  return { count: fallbackCount, isLoading: fallbackLoading };
 }
 
 // ---------------------------------------------------------------------------

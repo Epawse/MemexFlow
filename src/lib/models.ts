@@ -5,6 +5,7 @@ type TableRow<T extends keyof Database["public"]["Tables"]> =
 
 export type Project = TableRow<"projects">;
 export type Capture = TableRow<"captures">;
+export type CaptureStatus = "pending" | "confirmed" | "ignored";
 export type Memory = TableRow<"memories">;
 export type Brief = TableRow<"briefs">;
 export type Signal = TableRow<"signals">;

@@ -7,6 +7,7 @@ import {
   useRecentCaptures,
   useActiveProjects,
   useUnreadSignalCount,
+  usePendingCaptureCount,
 } from "../../hooks/usePowerSyncQueries";
 import { createCapture } from "../../lib/captures";
 import { Card } from "../../shared/components/Card";
@@ -48,7 +49,7 @@ export function DashboardPage() {
       await createCapture({ userId: user.id, url: captureUrl.trim() });
       setCaptureUrl("");
       toast.success("Capture queued", {
-        description: "Content will be extracted shortly.",
+        description: "Review and confirm to extract memories.",
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Unknown error";
@@ -61,6 +62,7 @@ export function DashboardPage() {
   };
 
   const signalCount = useUnreadSignalCount(user?.id ?? "");
+  const pendingCaptureCount = usePendingCaptureCount(user?.id ?? "");
 
   const statCards = [
     {
@@ -105,6 +107,7 @@ export function DashboardPage() {
         <input
           type="url"
           placeholder="Quick capture — paste a URL..."
+          aria-label="Capture URL"
           value={captureUrl}
           onChange={(e) => setCaptureUrl(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleQuickCapture()}
@@ -163,6 +166,26 @@ export function DashboardPage() {
                     {signalCount.count} unread signal match{signalCount.count !== 1 ? "es" : ""}
                   </p>
                   <p className="text-xs text-amber-600 dark:text-amber-400">Click to view</p>
+                </div>
+              </button>
+            </div>
+          )}
+
+          {/* Pending captures banner */}
+          {pendingCaptureCount.count > 0 && (
+            <div className={signalCount.count > 0 ? "mt-4" : "mt-6"}>
+              <button onClick={() => navigate("/captures")} aria-label="Review pending captures"
+                className="flex items-center gap-3 px-4 py-3 bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-xl cursor-pointer hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors w-full text-left">
+                <div className="w-8 h-8 rounded-lg bg-primary-100 dark:bg-primary-900/40 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-primary-600 dark:text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-3.848 0c-1.131.094-1.976 1.057-1.976 2.192V16.5c0 1.108.845 2.046 1.976 2.192" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-primary-800 dark:text-primary-300">
+                    {pendingCaptureCount.count} capture{pendingCaptureCount.count !== 1 ? "s" : ""} awaiting review
+                  </p>
+                  <p className="text-xs text-primary-600 dark:text-primary-400">Confirm to extract memories</p>
                 </div>
               </button>
             </div>

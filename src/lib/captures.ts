@@ -1,5 +1,6 @@
 import { getPowerSyncDb } from "./powersync";
 import { supabase } from "./supabase";
+import type { Capture } from "./models";
 
 interface CreateCaptureParams {
   userId: string;
@@ -69,6 +70,8 @@ export async function createIngestionJob({
   } else {
     // jobs.input is jsonb — pass object directly so Postgres stores it
     // as a jsonb object rather than a jsonb string.
+    // NOTE: `as any` required because Database type lacks Relationships
+    // field needed for Supabase-js v2 generic inference.
     const { error } = await (supabase.from("jobs") as any).insert({
       user_id: userId,
       type: "ingestion",
@@ -91,7 +94,7 @@ export async function createCapture({
 
   if (db) {
     await db.execute(
-      "INSERT INTO captures (id, user_id, project_id, type, title, url, content, metadata, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, '', '{}', ?, ?)",
+      "INSERT INTO captures (id, user_id, project_id, type, title, url, content, metadata, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, '', '{}', 'pending', ?, ?)",
       [
         captureId,
         userId,
@@ -113,10 +116,96 @@ export async function createCapture({
       type: "url",
       title: normalizedUrl,
       url: normalizedUrl,
+      status: "pending",
     });
     if (captureError) throw captureError;
   }
 
   await createIngestionJob({ userId, captureId, url: normalizedUrl });
   return captureId;
+}
+
+/** Confirm a pending capture and create an extraction job if content is ready. */
+export async function confirmCapture(capture: Capture) {
+  const db = getPowerSyncDb();
+  const now = new Date().toISOString();
+
+  if (db) {
+    await db.execute(
+      "UPDATE captures SET status = 'confirmed', confirmed_at = ?, updated_at = ? WHERE id = ?",
+      [now, now, capture.id],
+    );
+  } else {
+    const { error } = await (supabase.from("captures") as any)
+      .update({ status: "confirmed", confirmed_at: now })
+      .eq("id", capture.id);
+    if (error) throw error;
+  }
+
+  // If ingestion has completed (content exists), create extraction job
+  if (capture.content && capture.content.trim().length > 0) {
+    const jobId = crypto.randomUUID();
+    const jobInput = JSON.stringify({
+      content: capture.content.slice(0, 8000),
+      capture_id: capture.id,
+      user_id: capture.user_id,
+      project_id: capture.project_id || "",
+    });
+
+    if (db) {
+      await db.execute(
+        "INSERT INTO jobs (id, user_id, type, status, input, output, error, created_at, updated_at) VALUES (?, ?, 'extraction', 'pending', ?, '', '', ?, ?)",
+        [jobId, capture.user_id, jobInput, now, now],
+      );
+    } else {
+      const { error } = await (supabase.from("jobs") as any).insert({
+        user_id: capture.user_id,
+        type: "extraction",
+        status: "pending",
+        input: {
+          content: capture.content.slice(0, 8000),
+          capture_id: capture.id,
+          user_id: capture.user_id,
+          project_id: capture.project_id || "",
+        },
+      });
+      if (error) throw error;
+    }
+  }
+}
+
+/** Ignore a pending capture — no extraction will run. */
+export async function ignoreCapture(captureId: string) {
+  const db = getPowerSyncDb();
+  const now = new Date().toISOString();
+
+  if (db) {
+    await db.execute(
+      "UPDATE captures SET status = 'ignored', updated_at = ? WHERE id = ?",
+      [now, captureId],
+    );
+  } else {
+    const { error } = await (supabase.from("captures") as any)
+      .update({ status: "ignored" })
+      .eq("id", captureId);
+    if (error) throw error;
+  }
+}
+
+/** Reactivate an ignored capture back to pending. */
+export async function reactivateCapture(captureId: string) {
+  const db = getPowerSyncDb();
+  const now = new Date().toISOString();
+
+  if (db) {
+    await db.execute(
+      "UPDATE captures SET status = 'pending', confirmed_at = NULL, updated_at = ? WHERE id = ?",
+      [now, captureId],
+    );
+  } else {
+    const { error } = await (supabase.from("captures") as any)
+      .update({ status: "pending", confirmed_at: null })
+      .eq("id", captureId);
+    if (error) throw error;
+  }
 }

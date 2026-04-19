@@ -113,12 +113,14 @@ Return JSON with keys: title, content, summary (1-2 sentence summary)"""
 
     if capture_id:
         capture_result = (supabase.table("captures")
-                         .select("project_id")
+                         .select("project_id, status")
                          .eq("id", capture_id)
                          .execute())
         capture_project_id = ""
+        capture_status = "pending"
         if capture_result.data:
             capture_project_id = capture_result.data[0].get("project_id") or ""
+            capture_status = capture_result.data[0].get("status", "pending")
 
         (supabase.table("captures")
          .update({
@@ -130,19 +132,22 @@ Return JSON with keys: title, content, summary (1-2 sentence summary)"""
          .eq("id", capture_id)
          .execute())
 
-        (supabase.table("jobs")
-         .insert({
-             "user_id": input_data.get("user_id", ""),
-             "type": "extraction",
-             "status": "pending",
-             "input": json.dumps({
-                 "content": content[:8000],
-                 "capture_id": capture_id,
+        # Chain extraction only if user has confirmed this capture.
+        # Pending captures wait for explicit user confirmation.
+        if capture_status == "confirmed":
+            (supabase.table("jobs")
+             .insert({
                  "user_id": input_data.get("user_id", ""),
-                 "project_id": capture_project_id,
-             }),
-         })
-         .execute())
+                 "type": "extraction",
+                 "status": "pending",
+                 "input": json.dumps({
+                     "content": content[:8000],
+                     "capture_id": capture_id,
+                     "user_id": input_data.get("user_id", ""),
+                     "project_id": capture_project_id,
+                 }),
+             })
+             .execute())
 
     logger.info("ingestion_complete", url=url, title=title, capture_id=capture_id)
     return result

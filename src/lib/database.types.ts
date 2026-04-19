@@ -83,6 +83,8 @@ export interface Database {
           content: string | null;
           url: string | null;
           metadata: Json;
+          status: "pending" | "confirmed" | "ignored";
+          confirmed_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -95,6 +97,8 @@ export interface Database {
           content?: string | null;
           url?: string | null;
           metadata?: Json;
+          status?: "pending" | "confirmed" | "ignored";
+          confirmed_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -107,6 +111,8 @@ export interface Database {
           content?: string | null;
           url?: string | null;
           metadata?: Json;
+          status?: "pending" | "confirmed" | "ignored";
+          confirmed_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
