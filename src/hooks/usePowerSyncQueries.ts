@@ -640,6 +640,23 @@ export function useAllBriefs(userId: string) {
   );
 }
 
+export function useBrief(briefId: string) {
+  const supabaseQuery = useCallback(async () => {
+    const { data, error } = await (supabase.from("briefs") as any)
+      .select("*")
+      .eq("id", briefId);
+    if (error) throw error;
+    return (data ?? []) as Brief[];
+  }, [briefId]);
+
+  return useDataQuery<Brief>(
+    "SELECT * FROM briefs WHERE id = ?",
+    [briefId],
+    supabaseQuery,
+    [briefId],
+  );
+}
+
 export function useBriefCitations(briefId: string) {
   const supabaseQuery = useCallback(async () => {
     const { data, error } = await (supabase.from("brief_memories") as any)

@@ -7,6 +7,7 @@ import { Card } from "../../shared/components/Card";
 import { EmptyState } from "../../shared/components/EmptyState";
 import { Spinner } from "../../shared/components/Spinner";
 import { Button } from "../../shared/components/Button";
+import { Tabs } from "../../shared/components/Tabs";
 import { getPowerSyncDb, reconnectPowerSync, debugPowerSyncTables } from "../../lib/powersync";
 import type { SignalDiscovery } from "../../lib/models";
 
@@ -98,9 +99,9 @@ export function SignalsPage() {
   const matchesCount = (matches ?? []).length;
   const discoveriesCount = (discoveries ?? []).length;
 
-  const tabs: { key: Tab; label: string; count: number }[] = [
-    { key: "matches", label: "Matches", count: matchesCount },
-    { key: "discoveries", label: "Discoveries", count: discoveriesCount },
+  const tabItems = [
+    { key: "matches", label: "Matches", badge: matchesCount },
+    { key: "discoveries", label: "Discoveries", badge: discoveriesCount },
   ];
 
   const [reconnecting, setReconnecting] = useState(false);
@@ -158,28 +159,12 @@ export function SignalsPage() {
         </p>
       </div>
 
-      <div className="border-b border-gray-200 dark:border-gray-700 mt-6">
-        <nav className="-mb-px flex gap-6">
-          {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`pb-3 text-sm font-medium border-b-2 transition-colors cursor-pointer ${
-                activeTab === tab.key
-                  ? "border-primary-600 text-primary-600 dark:border-primary-400 dark:text-primary-400"
-                  : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-              }`}
-            >
-              {tab.label}
-              {tab.count > 0 && (
-                <span className="ml-1.5 text-xs bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400 px-1.5 py-0.5 rounded-full">
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          ))}
-        </nav>
-      </div>
+      <Tabs
+        items={tabItems}
+        activeKey={activeTab}
+        onChange={(key) => setActiveTab(key as Tab)}
+        className="mt-6"
+      />
 
       {activeTab === "matches" && (
         matchesLoading ? <Spinner className="mt-8" /> :
@@ -188,7 +173,7 @@ export function SignalsPage() {
           <EmptyState
             className="mt-8"
             title="No signal matches"
-            description="Create a signal rule in a project to start monitoring for keyword matches."
+            description="Create a signal rule in a topic to start monitoring for keyword matches."
           />
         ) : (
           <div className="mt-6 space-y-3">

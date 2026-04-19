@@ -46,5 +46,14 @@ lerna-debug.log*
 *.sln
 *.sw?
 
+# Trellis workspace (local dev state)
+.trellis/workspace/
+
+# Ruff cache
+.ruff_cache/
+
+# Opencode local config
+.opencode/
+
 # OS
 Thumbs.db

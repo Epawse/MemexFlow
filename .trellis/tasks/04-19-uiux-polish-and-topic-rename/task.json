@@ -1,0 +1,53 @@
+{
+  "id": "uiux-polish-and-topic-rename",
+  "name": "uiux-polish-and-topic-rename",
+  "title": "UI/UX Polish & Project→Topic Rename",
+  "description": "Comprehensive UI/UX polish: rename Project→Topic in UI labels, extract shared components (Tabs, StatusBadge, constants, renderContent), improve Card accessibility, split ProjectDetailPage, add search/filter to list pages, polish LoginPage",
+  "status": "planning",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P1",
+  "creator": "haor",
+  "assignee": "haor",
+  "createdAt": "2026-04-19",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "current_phase": 1,
+  "next_action": [
+    {
+      "phase": 1,
+      "action": "brainstorm"
+    },
+    {
+      "phase": 2,
+      "action": "research"
+    },
+    {
+      "phase": 3,
+      "action": "implement"
+    },
+    {
+      "phase": 4,
+      "action": "check"
+    },
+    {
+      "phase": 5,
+      "action": "update-spec"
+    },
+    {
+      "phase": 6,
+      "action": "record-session"
+    }
+  ],
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}

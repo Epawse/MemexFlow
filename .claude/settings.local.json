@@ -25,7 +25,28 @@
       "Bash(ruff check *)",
       "Bash(python -m py_compile src/worker/jobs/handlers.py)",
       "Bash(python -m py_compile src/worker/main.py)",
-      "Bash(git reset *)"
+      "Bash(git reset *)",
+      "Bash(python -m ruff check src/)",
+      "Bash(pip install *)",
+      "Bash(pip3 install *)",
+      "WebFetch(domain:www.nowcoder.com)",
+      "WebFetch(domain:docs.openclaw.ai)",
+      "Bash(npx vitest *)",
+      "Bash(.venv/bin/python *)",
+      "mcp__chrome-devtools__list_pages",
+      "mcp__chrome-devtools__navigate_page",
+      "mcp__chrome-devtools__list_console_messages",
+      "mcp__chrome-devtools__take_snapshot",
+      "mcp__chrome-devtools__fill",
+      "mcp__chrome-devtools__click",
+      "mcp__chrome-devtools__wait_for",
+      "mcp__chrome-devtools__evaluate_script",
+      "Bash(pnpm lint *)",
+      "Bash(pnpm type-check *)",
+      "Bash(pnpm test *)",
+      "Bash(npx vite *)",
+      "WebFetch(domain:bytedance.aiforce.cloud)",
+      "WebFetch(domain:mcnt8r4c3f2k.feishuapp.cn)"
     ]
   }
 }

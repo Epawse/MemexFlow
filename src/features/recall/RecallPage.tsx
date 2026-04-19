@@ -12,20 +12,9 @@ import { Card } from "../../shared/components/Card";
 import { EmptyState } from "../../shared/components/EmptyState";
 import { Spinner } from "../../shared/components/Spinner";
 import { Button } from "../../shared/components/Button";
-import type { Recall, RecallReason } from "../../lib/models";
-
-const REASON_LABELS: Record<RecallReason, string> = {
-  time_based: "Not reviewed in 30+ days",
-  project_active: "Project has recent activity",
-  association_dense: "Connected to many other memories",
-  signal_triggered: "Recently matched a signal rule",
-};
-
-const PRIORITY_BADGES: Record<string, { label: string; cls: string }> = {
-  high: { label: "High", cls: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" },
-  medium: { label: "Medium", cls: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" },
-  low: { label: "Low", cls: "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400" },
-};
+import type { Recall } from "../../lib/models";
+import { REASON_LABELS } from "../../shared/constants";
+import { PriorityBadge } from "../../shared/components/PriorityBadge";
 
 export function RecallPage() {
   const { user } = useAuth();
@@ -129,16 +118,12 @@ export function RecallPage() {
         <div className="mt-6 space-y-3">
           {recallList.map((recall) => {
             const memory = memoryMap.get(recall.memory_id);
-            const badge = PRIORITY_BADGES[recall.priority] ?? PRIORITY_BADGES.medium;
-
             return (
               <Card key={recall.id}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${badge.cls}`}>
-                        {badge.label}
-                      </span>
+                      <PriorityBadge priority={recall.priority} />
                       <span className="text-xs text-gray-500 dark:text-gray-400">
                         {REASON_LABELS[recall.reason] ?? recall.reason}
                       </span>

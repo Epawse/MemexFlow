@@ -18,12 +18,8 @@ import { Card } from "../../shared/components/Card";
 import { EmptyState } from "../../shared/components/EmptyState";
 import { Spinner } from "../../shared/components/Spinner";
 import { Button } from "../../shared/components/Button";
-
-const TYPE_ICONS: Record<string, string> = {
-  url: "M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.728-2.632a4.5 4.5 0 00-6.364-6.364L4.5 8.25a4.5 4.5 0 001.242 7.244",
-  note: "M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z",
-  file: "M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-19.5 0V18A2.25 2.25 0 004.5 20.25h15A2.25 2.25 0 0021.75 18v-5.75m-19.5 0h19.5",
-};
+import { TYPE_ICONS, REASON_LABELS } from "../../shared/constants";
+import { PriorityBadge } from "../../shared/components/PriorityBadge";
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -77,24 +73,28 @@ export function DashboardPage() {
       value: stats.captures,
       color: "text-primary-600 dark:text-primary-400",
       bg: "bg-primary-50 dark:bg-primary-900/20",
+      href: "/captures",
     },
     {
       label: "Memories",
       value: stats.memories,
       color: "text-purple-600 dark:text-purple-400",
       bg: "bg-purple-50 dark:bg-purple-900/20",
+      href: "/memories",
     },
     {
-      label: "Projects",
+      label: "Topics",
       value: stats.projects,
       color: "text-green-600 dark:text-green-400",
       bg: "bg-green-50 dark:bg-green-900/20",
+      href: "/projects",
     },
     {
       label: "Briefs",
       value: stats.briefs,
       color: "text-amber-600 dark:text-amber-400",
       bg: "bg-amber-50 dark:bg-amber-900/20",
+      href: "/briefs",
     },
   ];
 
@@ -146,7 +146,8 @@ export function DashboardPage() {
             {statCards.map((stat) => (
               <div
                 key={stat.label}
-                className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5"
+                onClick={() => navigate(stat.href)}
+                className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 cursor-pointer hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600 transition-shadow"
               >
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
                   {stat.label}
@@ -215,20 +216,9 @@ export function DashboardPage() {
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                            recall.priority === "high"
-                              ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                              : recall.priority === "medium"
-                                ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                                : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400"
-                          }`}>
-                            {recall.priority}
-                          </span>
+                          <PriorityBadge priority={recall.priority} />
                           <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {recall.reason === "time_based" ? "Not reviewed in 30+ days"
-                              : recall.reason === "project_active" ? "Project recently active"
-                              : recall.reason === "association_dense" ? "Many connections"
-                              : "Signal match"}
+                            {REASON_LABELS[recall.reason] ?? recall.reason}
                           </span>
                         </div>
                         {recall.reason_detail && (
@@ -314,7 +304,7 @@ export function DashboardPage() {
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Active Projects
+                  Active Topics
                 </h3>
                 <Button
                   variant="text"
@@ -326,11 +316,11 @@ export function DashboardPage() {
               </div>
               {activeProjects.length === 0 ? (
                 <EmptyState
-                  title="No projects yet"
-                  description="Create a project to organize your research."
+                  title="No topics yet"
+                  description="Create a topic to organize your research."
                   action={
                     <Button size="sm" onClick={() => navigate("/projects")}>
-                      Create project
+                      Create topic
                     </Button>
                   }
                 />

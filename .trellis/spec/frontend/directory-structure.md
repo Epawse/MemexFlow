@@ -92,7 +92,7 @@ Phase 3A (Candidate Confirmation), 3B (External Signals), and 3C (Recall Loop) a
 src/features/
 ├── captures/
 │   ├── CapturesPage.tsx           # Enhanced with status tabs (pending/confirmed/ignored)
-│   └── CaptureConfirmModal.tsx     # Confirm/ignore candidate captures
+│   └── CaptureDetailPage.tsx     # Content preview, AI summary, linked memories
 ├── signals/
 │   └── SignalsPage.tsx            # Tabbed view: Matches | Discoveries, channel type selector
 └── recall/
@@ -103,6 +103,41 @@ Implemented:
 - **Candidate confirmation** — status tabs on CapturesPage, confirm/ignore actions
 - **External signals** — channel type selector (Internal/RSS/GitHub) on ProjectDetailPage, discoveries tab on SignalsPage
 - **Recall loop** — `/recall` route, dashboard suggestions, recall job worker handler
+- **Capture detail page** — `/captures/:id` route with content preview, AI summary, linked memories, confirm/ignore/retry actions
+- **Brief detail page** — `/briefs/:id` route with full brief rendering, citation markers, cited memories, delete action
+
+---
+
+## [Phase 4 — In Progress] UI/UX Polish & Project→Topic Rename
+
+Extracting shared components, renaming UI labels, and polishing UX.
+
+### New shared files being added:
+
+```
+src/shared/
+├── components/
+│   ├── Tabs.tsx                   # Unified tab bar component
+│   ├── StatusBadge.tsx            # Status pill badges
+│   └── PriorityBadge.tsx          # Priority badges for recalls
+├── constants/
+│   └── index.ts                   # TOPIC_COLORS, TYPE_ICONS, STATUS_BADGE, REASON_LABELS, PRIORITY_BADGES
+└── utils/
+    └── renderContent.tsx          # Shared markdown+citation parser
+```
+
+### Planned sub-component split for ProjectDetailPage:
+
+```
+src/features/projects/
+├── ProjectsPage.tsx               # Renamed labels: "Topic" instead of "Project"
+├── TopicDetailPage.tsx            # Main detail page (~200 lines)
+├── CapturesTab.tsx                # Captures tab content
+├── MemoriesTab.tsx                # Memories tab content
+├── BriefsTab.tsx                  # Briefs list + detail
+├── SignalsTab.tsx                 # Signal rules form + list
+└── SettingsTab.tsx                # Settings form + danger zone
+```
 
 ---
 

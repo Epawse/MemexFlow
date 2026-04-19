@@ -5,4 +5,8 @@ export { ErrorBoundary } from "./ErrorBoundary";
 export { Input } from "./Input";
 export { Modal } from "./Modal";
 export { Spinner } from "./Spinner";
+export { Tabs } from "./Tabs";
+export type { TabItem } from "./Tabs";
+export { StatusBadge } from "./StatusBadge";
+export { PriorityBadge } from "./PriorityBadge";
 export { DashboardLayout } from "./DashboardLayout";

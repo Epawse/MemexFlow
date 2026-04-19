@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@powersync/react";
 import {
-  useAllBriefs,
+  useBrief,
   useBriefCitations,
   deleteBrief,
 } from "../../hooks/usePowerSyncQueries";
@@ -10,6 +10,7 @@ import { EmptyState } from "../../shared/components/EmptyState";
 import { Spinner } from "../../shared/components/Spinner";
 import { Button } from "../../shared/components/Button";
 import { toast } from "sonner";
+import { renderContent } from "../../shared/utils/renderContent";
 
 export function BriefDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -19,8 +20,8 @@ export function BriefDetailPage() {
     data: briefRows,
     isLoading,
     error,
-  } = useAllBriefs("");
-  const brief = briefRows?.find((b) => b.id === id) ?? null;
+  } = useBrief(id ?? "");
+  const brief = briefRows?.[0] ?? null;
 
   if (isLoading) return <Spinner className="mt-12" />;
   if (error || !brief) {
@@ -68,42 +69,6 @@ function BriefDetail({
     }
   };
 
-  const renderContent = (content: string) => {
-    if (!content) return null;
-    const parts = content.split(/(\[M\d+\])/g);
-    return parts.map((part, i) => {
-      const match = part.match(/^\[M(\d+)\]$/);
-      if (match) {
-        const idx = parseInt(match[1], 10) - 1;
-        const citation = (citations ?? [])[idx];
-        const memory = citation ? citedMemories.get(citation.memory_id) : null;
-        return (
-          <span
-            key={i}
-            className="text-primary-600 dark:text-primary-400 font-medium cursor-help"
-            title={memory?.summary || "Cited memory"}
-          >
-            {part}
-          </span>
-        );
-      }
-      const lines = part.split("\n");
-      return lines.map((line, j) => {
-        if (line.startsWith("### "))
-          return <h4 key={`${i}-${j}`} className="text-base font-semibold text-gray-900 dark:text-white mt-4 mb-2">{line.slice(4)}</h4>;
-        if (line.startsWith("## "))
-          return <h3 key={`${i}-${j}`} className="text-lg font-semibold text-gray-900 dark:text-white mt-5 mb-2">{line.slice(3)}</h3>;
-        if (line.startsWith("# "))
-          return <h2 key={`${i}-${j}`} className="text-xl font-bold text-gray-900 dark:text-white mt-6 mb-3">{line.slice(2)}</h2>;
-        if (line.startsWith("- ") || line.startsWith("* "))
-          return <li key={`${i}-${j}`} className="text-sm text-gray-700 dark:text-gray-300 ml-4">{line.slice(2)}</li>;
-        if (line.trim() === "")
-          return <br key={`${i}-${j}`} />;
-        return <p key={`${i}-${j}`} className="text-sm text-gray-700 dark:text-gray-300">{line}</p>;
-      });
-    });
-  };
-
   if (brief.status === "pending" || brief.status === "processing") {
     return (
       <div>
@@ -114,7 +79,7 @@ function BriefDetail({
           Back to Briefs
         </button>
         <div className="flex flex-col items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600 mb-4" />
+          <Spinner size="lg" className="mb-4" />
           <p className="text-sm text-gray-500 dark:text-gray-400">
             {brief.status === "pending" ? "Waiting to generate..." : "Generating brief..."}
           </p>
@@ -152,7 +117,7 @@ function BriefDetail({
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
         <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">{brief.title}</h2>
         <div className="prose prose-sm dark:prose-invert max-w-none">
-          {renderContent(brief.content)}
+          {renderContent(brief.content, citations ?? null, citedMemories)}
         </div>
       </div>
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "../../lib/AuthProvider";
@@ -9,21 +9,11 @@ import { Button } from "../../shared/components/Button";
 import { Card } from "../../shared/components/Card";
 import { EmptyState } from "../../shared/components/EmptyState";
 import { Spinner } from "../../shared/components/Spinner";
-
-const TYPE_ICONS: Record<string, string> = {
-  url: "M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.728-2.632a4.5 4.5 0 00-6.364-6.364L4.5 8.25a4.5 4.5 0 001.242 7.244",
-  note: "M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z",
-  file: "M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-19.5 0V18A2.25 2.25 0 004.5 20.25h15A2.25 2.25 0 0021.75 18v-5.75m-19.5 0h19.5",
-};
+import { Input } from "../../shared/components/Input";
+import { TYPE_ICONS, CAPTURE_STATUS_BADGE, JOB_STATUS_BADGE } from "../../shared/constants";
+import { Tabs } from "../../shared/components/Tabs";
 
 type CaptureTab = "all" | "pending" | "confirmed" | "ignored";
-
-const TABS: { key: CaptureTab; label: string }[] = [
-  { key: "pending", label: "Pending" },
-  { key: "all", label: "All" },
-  { key: "confirmed", label: "Confirmed" },
-  { key: "ignored", label: "Ignored" },
-];
 
 export function CapturesPage() {
   const { user } = useAuth();
@@ -33,18 +23,27 @@ export function CapturesPage() {
   const [capturing, setCapturing] = useState(false);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   const userId = user?.id ?? "";
 
   const { data: allCaptures, isLoading: allLoading, error: allError } = useCaptures(userId);
-  const { data: filteredCaptures, isLoading: filteredLoading, error: filteredError } = useCapturesByStatus(userId, activeTab === "all" ? null : activeTab);
+  const { data: statusFiltered, isLoading: filteredLoading, error: filteredError } = useCapturesByStatus(userId, activeTab === "all" ? null : activeTab);
   const { data: jobsRaw } = usePendingJobs(userId);
   const { count: pendingCount } = usePendingCaptureCount(userId);
 
-  const captures: Capture[] = activeTab === "all" ? (allCaptures ?? []) : (filteredCaptures ?? []);
+  const captures: Capture[] = activeTab === "all" ? (allCaptures ?? []) : (statusFiltered ?? []);
   const loading = activeTab === "all" ? allLoading : filteredLoading;
   const error = activeTab === "all" ? allError : filteredError;
   const jobs: Job[] = jobsRaw ?? [];
+
+  const filteredCaptures = useMemo(() => {
+    if (!search.trim()) return captures;
+    const q = search.toLowerCase();
+    return captures.filter((c) =>
+      c.title.toLowerCase().includes(q) || c.status.toLowerCase().includes(q),
+    );
+  }, [captures, search]);
 
   const getCaptureJob = (captureId: string): Job | null => {
     return (
@@ -159,41 +158,22 @@ export function CapturesPage() {
   };
 
   const captureStatusBadge = (capture: Capture) => {
-    const styles: Record<string, string> = {
-      pending: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-      confirmed: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-      ignored: "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400",
-    };
-    const labels: Record<string, string> = {
-      pending: "Pending",
-      confirmed: "Confirmed",
-      ignored: "Ignored",
-    };
     const s = capture.status || "pending";
     return (
       <span
-        className={`text-xs px-2 py-0.5 rounded-full font-medium ${styles[s] || styles.pending}`}
+        className={`text-xs px-2 py-0.5 rounded-full font-medium ${CAPTURE_STATUS_BADGE[s] || CAPTURE_STATUS_BADGE.pending}`}
       >
-        {labels[s] || s}
+        {s.charAt(0).toUpperCase() + s.slice(1)}
       </span>
     );
   };
 
   const jobStatusBadge = (job: Job | null) => {
     if (!job) return null;
-    const styles: Record<string, string> = {
-      pending: "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300",
-      processing:
-        "bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400",
-      completed:
-        "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-      failed:
-        "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-    };
     const s = job.status;
     return (
       <span
-        className={`text-xs px-2 py-0.5 rounded-full font-medium ${styles[s] || styles.pending}`}
+        className={`text-xs px-2 py-0.5 rounded-full font-medium ${JOB_STATUS_BADGE[s] || JOB_STATUS_BADGE.pending}`}
       >
         {s === "processing" ? "Extracting..." : s}
       </span>
@@ -262,30 +242,33 @@ export function CapturesPage() {
         </Button>
       </div>
 
-      {/* Status tabs */}
-      <div className="mt-6 flex gap-1 border-b border-gray-200 dark:border-gray-700">
-        {TABS.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === tab.key
-                ? "border-primary-600 text-primary-600 dark:text-primary-400"
-                : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-            }`}
-            aria-label={`Show ${tab.label} captures`}
-          >
-            {tab.label}
-            {tab.key === "pending" && pendingCount > 0 && (
-              <span className="ml-1.5 bg-amber-500 text-white text-xs rounded-full px-1.5 py-0.5">
-                {pendingCount}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
+      {/* Search */}
+      {captures.length > 0 && (
+        <div className="mt-4">
+          <Input
+            placeholder="Search captures..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+      )}
 
-      {captures.length === 0 ? (
+      {/* Status tabs */}
+      <Tabs
+        className="mt-6"
+        items={[
+          { key: "pending", label: "Pending", badge: pendingCount > 0 ? pendingCount : undefined },
+          { key: "all", label: "All" },
+          { key: "confirmed", label: "Confirmed" },
+          { key: "ignored", label: "Ignored" },
+        ]}
+        activeKey={activeTab}
+        onChange={(key) => setActiveTab(key as CaptureTab)}
+      />
+
+      {filteredCaptures.length === 0 && search.trim() ? (
+        <EmptyState className="mt-8" title="No matches" description="No captures match your search." />
+      ) : captures.length === 0 ? (
         <EmptyState
           className="mt-8"
           title={activeTab === "pending" ? "No pending captures" : "No captures yet"}
@@ -297,7 +280,7 @@ export function CapturesPage() {
         />
       ) : (
         <div className="mt-4 space-y-2">
-          {captures.map((capture) => {
+          {filteredCaptures.map((capture) => {
             const job = getCaptureJob(capture.id);
             const showConfirm = capture.status === "pending" && !!capture.content?.trim();
             const showIgnore = capture.status === "pending";

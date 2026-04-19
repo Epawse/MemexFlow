@@ -9,17 +9,7 @@ import { Input } from "../../shared/components/Input";
 import { Card } from "../../shared/components/Card";
 import { EmptyState } from "../../shared/components/EmptyState";
 import { Spinner } from "../../shared/components/Spinner";
-
-const PROJECT_COLORS = [
-  "#6366f1",
-  "#8b5cf6",
-  "#ec4899",
-  "#ef4444",
-  "#f59e0b",
-  "#22c55e",
-  "#14b8a6",
-  "#3b82f6",
-];
+import { TOPIC_COLORS } from "../../shared/constants";
 
 export function ProjectsPage() {
   const { user } = useAuth();
@@ -29,12 +19,12 @@ export function ProjectsPage() {
   const [creating, setCreating] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
-  const [newColor, setNewColor] = useState(PROJECT_COLORS[0]);
+  const [newColor, setNewColor] = useState<string>(TOPIC_COLORS[0]);
 
   const resetForm = () => {
     setNewTitle("");
     setNewDescription("");
-    setNewColor(PROJECT_COLORS[0]);
+    setNewColor(TOPIC_COLORS[0]);
   };
 
   const handleCreate = async () => {
@@ -50,12 +40,12 @@ export function ProjectsPage() {
       );
       setShowCreateModal(false);
       resetForm();
-      toast.success("Project created", {
+      toast.success("Topic created", {
         description: `"${newTitle.trim()}" is ready.`,
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Unknown error";
-      toast.error("Failed to create project", {
+      toast.error("Failed to create topic", {
         description: msg,
       });
     } finally {
@@ -70,10 +60,10 @@ export function ProjectsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Projects
+            Topics
           </h2>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            Organize your research into focused projects
+            Organize your research into focused topics
           </p>
         </div>
         <Button onClick={() => setShowCreateModal(true)}>
@@ -90,7 +80,7 @@ export function ProjectsPage() {
               d="M12 4.5v15m7.5-7.5h-15"
             />
           </svg>
-          New Project
+          New Topic
         </Button>
       </div>
 
@@ -99,7 +89,7 @@ export function ProjectsPage() {
       ) : error ? (
         <EmptyState
           className="mt-12"
-          title="Couldn't load projects"
+          title="Couldn't load topics"
           description={error || "Please try again."}
           action={
             <Button onClick={() => window.location.reload()}>Reload</Button>
@@ -107,11 +97,11 @@ export function ProjectsPage() {
         />
       ) : projectList.length === 0 ? (
         <EmptyState
-          title="No projects yet"
-          description="Create a project to organize related captures and generate briefs."
+          title="No topics yet"
+          description="Create a topic to organize related captures and generate briefs."
           action={
             <Button onClick={() => setShowCreateModal(true)} size="sm">
-              Create your first project
+              Create your first topic
             </Button>
           }
         />
@@ -155,7 +145,7 @@ export function ProjectsPage() {
           setShowCreateModal(false);
           resetForm();
         }}
-        title="New Project"
+        title="New Topic"
       >
         <form
           onSubmit={(e) => {
@@ -166,14 +156,14 @@ export function ProjectsPage() {
         >
           <Input
             label="Title"
-            placeholder="My Research Project"
+            placeholder="My Research Topic"
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
             required
           />
           <Input
             label="Description (optional)"
-            placeholder="What is this project about?"
+            placeholder="What is this topic about?"
             value={newDescription}
             onChange={(e) => setNewDescription(e.target.value)}
           />
@@ -182,7 +172,7 @@ export function ProjectsPage() {
               Color
             </label>
             <div className="flex gap-2">
-              {PROJECT_COLORS.map((color) => (
+              {TOPIC_COLORS.map((color) => (
                 <button
                   key={color}
                   type="button"
@@ -209,7 +199,7 @@ export function ProjectsPage() {
               Cancel
             </Button>
             <Button loading={creating} disabled={!newTitle.trim()}>
-              Create Project
+              Create Topic
             </Button>
           </div>
         </form>
