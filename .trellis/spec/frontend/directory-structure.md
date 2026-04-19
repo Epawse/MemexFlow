@@ -6,138 +6,183 @@
 
 ## Overview
 
-MemexFlow frontend is a React/TypeScript application wrapped in Tauri 2, targeting **macOS** first, with **Windows** as Phase 2. The project uses feature-first organization with a shared core layer.
+MemexFlow frontend is a React/TypeScript application wrapped in Tauri 2, targeting **macOS** first, with **Windows** as Phase 2. The project uses feature-first organization with a shared infrastructure layer.
+
+> **Legend**: Sections marked **[Current]** reflect the deployed structure.
+> Sections marked **[Phase 3]** will be added by the Phase 3 task.
+> Sections marked **[Planned]** describe the target architecture but are not yet scheduled.
 
 ---
 
-## Directory Layout
+## [Current] Directory Layout
 
 ```
 src/
 ├── main.tsx                         # React entry point
 ├── App.tsx                          # Root component, router setup
-├── core/                            # Shared infrastructure
-│   ├── config/                      # App config, env, constants
-│   │   ├── app-config.ts
-│   │   └── constants.ts
-│   ├── database/                    # PowerSync + SQLite local database
-│   │   ├── powersync.ts             # PowerSync client singleton
-│   │   ├── schema.ts                # PowerSync schema definitions
-│   │   └── queries.ts               # Reusable SQL queries
-│   ├── network/                     # Supabase client, API helpers
-│   │   ├── supabase-client.ts
-│   │   └── api-error.ts
-│   ├── auth/                        # Authentication logic
-│   │   ├── auth-provider.tsx        # Auth context provider
-│   │   └── use-auth.ts              # Auth hook
-│   ├── theme/                       # Theme config, colors, typography
-│   │   ├── theme.ts
-│   │   └── colors.ts
-│   ├── routing/                     # React Router configuration
-│   │   └── router.tsx
-│   └── utils/                       # Pure utility functions
-│       ├── date-utils.ts
-│       └── string-utils.ts
-├── types/                           # Shared TypeScript types
-│   ├── project.ts
-│   ├── candidate.ts
-│   ├── memory.ts
-│   └── brief.ts
-├── hooks/                           # Shared React hooks
-│   ├── use-powersync.ts             # PowerSync data hooks
-│   ├── use-supabase-query.ts        # React Query + Supabase
-│   └── use-debounce.ts
-├── tauri/                           # Tauri-specific integrations
-│   ├── commands.ts                  # Rust command bindings
-│   └── events.ts                    # Tauri event listeners
-├── features/                        # Feature modules
-│   ├── home/
-│   │   ├── HomePage.tsx
-│   │   ├── hooks/
-│   │   └── components/
+├── vite-env.d.ts                    # Vite type declarations
+├── lib/                            # Shared infrastructure
+│   ├── AuthProvider.tsx             # Auth context provider
+│   ├── PowerSyncProvider.tsx        # PowerSync context provider
+│   ├── captures.ts                 # Shared capture+job creation utility
+│   ├── captures.test.ts             # Tests for captures utility
+│   ├── database.types.ts           # Auto-generated Supabase types
+│   ├── deep-link.ts                # Deep link handling
+│   ├── models.ts                   # Shared TypeScript type definitions
+│   ├── powersync.ts                # PowerSync client, schema, connector
+│   └── supabase.ts                 # Supabase client singleton
+├── hooks/
+│   └── usePowerSyncQueries.ts      # All data hooks (useProjects, useCaptures, etc.)
+├── features/                       # Feature modules
+│   ├── auth/
+│   │   └── LoginPage.tsx
+│   ├── captures/
+│   │   └── CapturesPage.tsx
+│   ├── dashboard/
+│   │   └── DashboardPage.tsx
+│   ├── memories/
+│   │   └── MemoriesPage.tsx
 │   ├── projects/
 │   │   ├── ProjectsPage.tsx
-│   │   ├── ProjectDetailPage.tsx
-│   │   ├── hooks/
-│   │   └── components/
-│   ├── capture/
-│   │   ├── CapturePage.tsx
-│   │   ├── hooks/
-│   │   └── components/
-│   ├── signals/
-│   │   ├── SignalsPage.tsx
-│   │   ├── hooks/
-│   │   └── components/
-│   ├── memory/
-│   │   ├── MemoryPage.tsx
-│   │   ├── hooks/
-│   │   └── components/
+│   │   └── ProjectDetailPage.tsx
 │   ├── briefs/
-│   │   ├── BriefsPage.tsx
-│   │   ├── hooks/
-│   │   └── components/
-│   └── recall/
-│       ├── RecallPage.tsx
-│       ├── hooks/
-│       └── components/
-├── shared/                          # Reusable components across features
+│   │   └── BriefsPage.tsx
+│   └── signals/
+│       └── SignalsPage.tsx
+├── shared/                          # Reusable UI components
 │   ├── components/
-│   │   ├── CandidateCard.tsx
-│   │   ├── MemoryCard.tsx
-│   │   ├── ProjectSelector.tsx
-│   │   └── TagChips.tsx
-│   └── layouts/
-│       ├── AppLayout.tsx
-│       └── ResponsiveLayout.tsx
-├── assets/
-│   ├── icons/
-│   ├── images/
-│   └── fonts/
-├── index.html
-├── vite.config.ts
-├── tsconfig.json
-└── tailwind.config.ts
+│   │   ├── Button.tsx
+│   │   ├── Card.tsx
+│   │   ├── DashboardLayout.tsx
+│   │   ├── EmptyState.tsx
+│   │   ├── ErrorBoundary.tsx
+│   │   ├── Input.tsx
+│   │   ├── Modal.tsx
+│   │   ├── Spinner.tsx
+│   │   ├── SyncStatusIndicator.tsx
+│   │   └── index.ts                # Barrel exports
+│   └── hooks/
+│       └── useTheme.tsx
+└── (no assets/, tests/, or tauri/ directories yet)
 
-src-tauri/                           # Tauri Rust backend
+src-tauri/                           # Tauri Rust backend (scaffolded)
 ├── src/
-│   ├── main.rs                      # Tauri app entry
-│   ├── commands.rs                  # Rust commands exposed to frontend
+│   ├── main.rs
+│   ├── commands.rs
 │   └── lib.rs
 ├── Cargo.toml
 └── tauri.conf.json
-
-tests/
-├── unit/
-├── component/
-└── integration/
 ```
+
+### Key characteristics
+
+- **All hooks in one file**: `usePowerSyncQueries.ts` contains all 16+ query hooks and 10+ mutation functions. Each feature imports what it needs from this single file.
+- **No per-feature hooks/**: Feature directories contain only page components — no nested `hooks/` or `components/` subdirectories.
+- **`lib/` not `core/`**: Shared infrastructure lives in `lib/`, not `core/`. Types are centralized in `lib/models.ts`, not in a separate `types/` directory.
+- **Dual-path data access**: `usePowerSyncQueries.ts` provides hooks that use PowerSync when available, falling back to direct Supabase queries.
+- **Shared utility**: `lib/captures.ts` handles both PowerSync and Supabase paths for capture+job creation.
+
+---
+
+## [Phase 3] Planned Additions
+
+```
+src/features/
+├── captures/
+│   ├── CapturesPage.tsx           # Enhanced with status tabs (pending/confirmed/ignored)
+│   └── CaptureConfirmModal.tsx     # Confirm/ignore candidate captures
+├── signals/
+│   ├── SignalsPage.tsx            # Enhanced with channel type selector
+│   └── SignalDiscoveries.tsx      # External discoveries tab
+└── recall/
+    └── RecallPage.tsx             # NEW — proactive knowledge revisit
+```
+
+Phase 3 adds:
+- **Candidate confirmation** — status tabs on CapturesPage, confirm/ignore actions
+- **External signals** — channel type selector on SignalsPage, discoveries tab
+- **Recall** — new `/recall` route with revisit/dismiss actions
+
+---
+
+## [Planned] Target Architecture
+
+```
+src/
+├── core/                           # Renamed from lib/
+│   ├── config/
+│   │   ├── app-config.ts
+│   │   └── constants.ts
+│   ├── database/
+│   │   ├── powersync.ts
+│   │   ├── schema.ts
+│   │   └── queries.ts              # Extracted from usePowerSyncQueries.ts
+│   ├── network/
+│   │   ├── supabase-client.ts
+│   │   └── api-error.ts
+│   ├── auth/
+│   │   ├── auth-provider.tsx
+│   │   └── use-auth.ts
+│   ├── theme/
+│   │   ├── theme.ts
+│   │   └── colors.ts
+│   ├── routing/
+│   │   └── router.tsx
+│   └── utils/
+│       ├── date-utils.ts
+│       └── string-utils.ts
+├── types/                          # Extracted from lib/models.ts
+│   ├── project.ts
+│   ├── capture.ts
+│   ├── memory.ts
+│   └── brief.ts
+├── hooks/                          # Split from usePowerSyncQueries.ts
+│   ├── use-powersync.ts
+│   ├── use-supabase-query.ts
+│   └── use-debounce.ts
+├── tauri/                          # Tauri-specific integrations
+│   ├── commands.ts
+│   └── events.ts
+├── features/
+│   ├── home/
+│   ├── projects/
+│   ├── captures/
+│   ├── signals/
+│   ├── memories/
+│   ├── briefs/
+│   └── recall/
+├── shared/
+│   ├── components/
+│   └── layouts/
+└── assets/
+    ├── icons/
+    ├── images/
+    └── fonts/
+```
+
+This is the long-term target but is **not** currently implemented. The `lib/` → `core/` rename and hook extraction will happen when the current monolithic files become unwieldy.
 
 ---
 
 ## Module Organization
 
-### Feature-first structure
+### [Current] Rules
 
-Each feature in `features/` contains:
-- **Page components** — top-level route components (e.g., `HomePage.tsx`)
-- **hooks/** — React hooks for state and data access (React Query, PowerSync)
-- **components/** — feature-specific components (not reusable outside the feature)
+1. **Features don't import from other features** — share via `lib/`, `hooks/`, `shared/`, or `lib/models.ts`
+2. **`lib/` has React components** — `AuthProvider.tsx` and `PowerSyncProvider.tsx` are React context providers
+3. **`hooks/usePowerSyncQueries.ts`** is the single source for all data hooks — features import individual hooks from it
+4. **`shared/components/`** contains reusable UI components used by 2+ features
+5. **Types are centralized** in `lib/models.ts` — no per-feature type files
+6. **File naming**: PascalCase for components (`DashboardPage.tsx`), camelCase for utilities (`captures.ts`)
 
-### Rules
-
-1. **Features don't import from other features** — share via `core/`, `shared/`, `hooks/`, or `types/`
-2. **core/** has no React component imports — it's pure TypeScript (config, database, network, utils)
-3. **shared/components/** contains reusable UI components used by 2+ features
-4. **One component per file** for top-level components; small helper components can be in the same file
-5. **Types are centralized** in `types/` for domain models shared across features
-
-### Adding a new feature
+### Adding a new feature (current)
 
 1. Create directory under `features/<feature-name>/`
-2. Add page component(s) (e.g., `FeaturePage.tsx`)
-3. Add hooks in `hooks/` for data fetching and state management
-4. Add feature-specific components in `components/`
-5. Register routes in `core/routing/router.tsx`
+2. Add page component (e.g., `FeaturePage.tsx`)
+3. Import data hooks from `hooks/usePowerSyncQueries.ts`
+4. Import shared components from `shared/components/`
+5. Import types from `lib/models.ts`
+6. Register route in `App.tsx`
 
 ---
 
@@ -145,22 +190,21 @@ Each feature in `features/` contains:
 
 | Item | Convention | Example |
 |------|-----------|---------|
-| Files | `kebab-case.ts(x)` | `project-detail-page.tsx` |
-| Components | `PascalCase` | `ProjectDetailPage` |
-| UI Components | `PascalCase`, suffix describes type | `CandidateCard`, `MemoryListItem` |
-| Pages | `*Page` suffix | `HomePage`, `BriefsPage` |
-| Hooks | `camelCase` + `use*` prefix | `useProjectList`, `usePowerSync` |
-| Types/Interfaces | `PascalCase` | `Project`, `Memory`, `ApiError` |
+| Component files | `PascalCase.tsx` | `DashboardPage.tsx`, `AuthProvider.tsx` |
+| Utility files | `camelCase.ts` | `captures.ts`, `deep-link.ts` |
+| Components | `PascalCase` | `DashboardPage`, `EmptyState` |
+| Pages | `*Page` suffix | `DashboardPage`, `BriefsPage` |
+| Hooks | `use*` prefix | `useProjects`, `usePowerSync` |
+| Types/Interfaces | `PascalCase` | `Project`, `Memory`, `Capture` |
 | Constants | `SCREAMING_SNAKE_CASE` for globals | `DEFAULT_PADDING`, `API_BASE_URL` |
-| Private | No leading underscore (use module scope) | `function buildHeader()` |
-| Test files | `<file>.test.ts(x)` | `candidate-card.test.tsx` |
+| Test files | `<file>.test.ts(x)` | `captures.test.ts` |
 
 ---
 
 ## Examples
 
 - Feature module: `src/features/projects/`
-- Shared component: `src/shared/components/CandidateCard.tsx`
-- Domain type: `src/types/project.ts`
-- Hook: `src/features/projects/hooks/use-project-list.ts`
-- Tauri command: `src/tauri/commands.ts`
+- Shared component: `src/shared/components/Card.tsx`
+- Domain types: `src/lib/models.ts`
+- Data hooks: `src/hooks/usePowerSyncQueries.ts`
+- Shared utility: `src/lib/captures.ts`

@@ -46,7 +46,7 @@ function CaptureForm() {
 
 ### 3. Server state (remote data)
 
-**Where**: PowerSync `useQuery` hooks with Supabase fallback
+**Where**: PowerSync `useQuery` hooks with Supabase fallback, centralized in `hooks/usePowerSyncQueries.ts`
 
 **Pattern A: PowerSync available** — Read from local SQLite, writes via `db.execute`
 
@@ -88,7 +88,7 @@ if (db) {
 }
 ```
 
-**Convenience hooks**: `usePowerSyncQueries.ts` provides `useProjects()`, `useCaptures()`, etc. These handle the PowerSync-or-Supabase fallback internally.
+**Convenience hooks**: `usePowerSyncQueries.ts` provides `useProjects()`, `useCaptures()`, `useMemories()`, etc. These handle the PowerSync-or-Supabase fallback internally.
 
 ### 4. Local-persistent state (survives app restart)
 
@@ -141,26 +141,25 @@ export async function createCapture({ userId, url, projectId }: CreateCapturePar
       [crypto.randomUUID(), userId, 'ingestion', 'pending', JSON.stringify({ capture_id: captureId, url, user_id: userId })]);
   } else {
     // Supabase fallback
-    await (supabase.from('captures') as any).insert({ ... });
-    await (supabase.from('jobs') as any).insert({ ... });
+    await supabase.from('captures').insert({ ... });
+    await supabase.from('jobs').insert({ ... });
   }
   return captureId;
 }
 ```
 
-### Sync status indicator
+### [Phase 3A] Candidate confirmation pattern
 
-```tsx
-import { useStatus } from "@powersync/react";
+When candidate confirmation is added, captures will have a `status` field (`pending` | `confirmed` | `ignored`). The flow becomes:
 
-function SyncStatusIndicator() {
-  const status = useStatus();
-  // status.connected — whether PowerSync is connected
-  // status.hasSynced — whether initial sync completed
-  // status.dataFlowStatus.uploading — currently uploading local changes
-  // status.dataFlowStatus.downloading — currently downloading remote changes
-}
-```
+1. User creates capture → `status = 'pending'`
+2. User reviews and confirms → update `status = 'confirmed'`, create extraction job
+3. Worker processes extraction → creates memories
+
+This requires:
+- New `usePendingCaptures()` hook filtering by `status = 'pending'`
+- Confirm/ignore mutation functions
+- Dashboard pending count indicator
 
 ---
 
@@ -172,7 +171,7 @@ Is it server data (from Supabase)?
 │         (useProjects, useCaptures, useMemories, createCapture)
 │
 └─ NO → Is it used by multiple features?
-        ├─ YES → Zustand store in core/stores/
+        ├─ YES → Zustand store in lib/stores/
         │         (reserved for auth, preferences)
         │
         └─ NO → Is it used by multiple components in one feature?
@@ -193,7 +192,7 @@ Is it server data (from Supabase)?
 Never fetch data in `useEffect` and store in `useState`. Use PowerSync `useQuery` hooks so data is shared, cached, and reactive.
 
 ```tsx
-// ❌ BAD: Fetching in useEffect + useState
+// BAD: Fetching in useEffect + useState
 function ProjectList() {
   const [projects, setProjects] = useState([]);
 
@@ -207,7 +206,7 @@ function ProjectList() {
   return <div>{/* ... */}</div>;
 }
 
-// ✅ GOOD: Using PowerSync useQuery (reactive, local-first)
+// GOOD: Using PowerSync useQuery (reactive, local-first)
 function ProjectList() {
   const { data: projects } = useProjects(userId);
   return <div>{/* ... */}</div>;
@@ -219,10 +218,10 @@ function ProjectList() {
 Always use PowerSync `db.execute()` for writes so offline writes are queued and synced. Only fall back to Supabase direct when PowerSync is not configured.
 
 ```tsx
-// ❌ BAD: Direct Supabase write (bypasses offline queue)
+// BAD: Direct Supabase write (bypasses offline queue)
 await supabase.from("projects").insert({ title: "New Project" });
 
-// ✅ GOOD: PowerSync write (queued for offline, auto-synced)
+// GOOD: PowerSync write (queued for offline, auto-synced)
 const db = usePowerSync();
 await db.execute("INSERT INTO projects (id, title, user_id) VALUES (?, ?, ?)", [
   crypto.randomUUID(),
@@ -236,7 +235,7 @@ await db.execute("INSERT INTO projects (id, title, user_id) VALUES (?, ?, ?)", [
 Some users may not have `VITE_POWERSYNC_URL` configured. Always check `getPowerSyncDb()` and fall back to Supabase direct.
 
 ```tsx
-// ✅ GOOD: Dual path in shared utilities
+// GOOD: Dual path in shared utilities
 import { getPowerSyncDb } from "../lib/powersync";
 import { supabase } from "../lib/supabase";
 
@@ -264,158 +263,3 @@ Always have a clear boundary: PowerSync `useQuery`/`db.execute` for server data 
 ### 6. Using global state for simple component state
 
 For ephemeral UI state (form inputs, toggles), use `useState`. Don't create Zustand stores for component-local state.
-Is it server data (from Supabase)?
-├─ YES → React Query + PowerSync
-│ (useCandidates, useMemories, useProjects)
-│
-└─ NO → Is it used by multiple features?
-├─ YES → Zustand store in core/stores/
-│ (useAuthStore, usePreferencesStore)
-│
-└─ NO → Is it used by multiple components in one feature?
-├─ YES → Zustand store in features/<name>/stores/
-│ (useCandidateFilterStore)
-│
-└─ NO → Does it need to persist across unmounts?
-├─ YES → Zustand with persist middleware
-│
-└─ NO → Component useState/useReducer
-
-````
-
----
-
-## Common Mistakes
-
-### 1. Storing server data in component state
-
-Never fetch data in `useEffect` and store in `useState`. Use React Query so data is shared, cached, and reactive across components.
-
-```tsx
-// ❌ BAD: Fetching in useEffect
-function ProjectList() {
-  const [projects, setProjects] = useState([]);
-
-  useEffect(() => {
-    supabase
-      .from("projects")
-      .select()
-      .then(({ data }) => setProjects(data));
-  }, []);
-
-  return <div>{/* ... */}</div>;
-}
-
-// ✅ GOOD: Using React Query
-function ProjectList() {
-  const { data: projects } = useProjects();
-  return <div>{/* ... */}</div>;
-}
-````
-
-### 2. Creating too many Zustand stores
-
-Don't create a separate store for every single piece of state. Group related state into a single store when they change together.
-
-```tsx
-// ❌ BAD: Too granular
-const useStatusStore = create((set) => ({
-  status: null,
-  setStatus: (s) => set({ status: s }),
-}));
-const useChannelStore = create((set) => ({
-  channel: null,
-  setChannel: (c) => set({ channel: c }),
-}));
-
-// ✅ GOOD: Grouped related state
-const useFilterStore = create((set) => ({
-  status: null,
-  channel: null,
-  setStatus: (status) => set({ status }),
-  setChannel: (channel) => set({ channel }),
-}));
-```
-
-### 3. Mixing presentation and data logic in stores
-
-Stores manage state. They don't navigate, show toasts, or format strings for display. Keep that in components.
-
-```tsx
-// ❌ BAD: Navigation logic in store
-const useAuthStore = create((set) => ({
-  logout: () => {
-    set({ user: null });
-    router.push("/login"); // Don't do this
-  },
-}));
-
-// ✅ GOOD: Navigation in component
-function LogoutButton() {
-  const logout = useAuthStore((state) => state.logout);
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
-  };
-
-  return <button onClick={handleLogout}>Logout</button>;
-}
-```
-
-### 4. Not separating local vs remote data sources
-
-Always have a clear boundary: React Query for server data (via PowerSync), Zustand for client state. Don't mix both in a single hook.
-
-```tsx
-// ❌ BAD: Mixing server and client state
-const useProjectState = create((set) => ({
-  projects: [], // Server data
-  selectedId: null, // Client state
-  fetchProjects: async () => {
-    const data = await supabase.from("projects").select();
-    set({ projects: data });
-  },
-}));
-
-// ✅ GOOD: Separated concerns
-const { data: projects } = useProjects(); // React Query for server data
-const selectedId = useProjectStore((state) => state.selectedId); // Zustand for client state
-```
-
-### 5. Using Zustand for simple component state
-
-Zustand is for shared or persistent state. For ephemeral UI state (form inputs, toggles), use `useState`.
-
-```tsx
-// ❌ BAD: Zustand for ephemeral state
-const useExpandedStore = create((set) => ({
-  isExpanded: false,
-  toggle: () => set((state) => ({ isExpanded: !state.isExpanded })),
-}));
-
-// ✅ GOOD: useState for component-local state
-function CollapsiblePanel() {
-  const [isExpanded, setIsExpanded] = useState(false);
-  return <div>{/* ... */}</div>;
-}
-```
-
-### 6. Not using Zustand selectors
-
-Always use selectors to avoid unnecessary re-renders. Only subscribe to the state you need.
-
-```tsx
-// ❌ BAD: Subscribing to entire store
-function StatusBadge() {
-  const store = useCandidateFilterStore(); // Re-renders on ANY state change
-  return <span>{store.status}</span>;
-}
-
-// ✅ GOOD: Using selector
-function StatusBadge() {
-  const status = useCandidateFilterStore((state) => state.status); // Only re-renders when status changes
-  return <span>{status}</span>;
-}
-```

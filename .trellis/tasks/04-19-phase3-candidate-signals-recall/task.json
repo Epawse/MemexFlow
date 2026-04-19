@@ -1,0 +1,26 @@
+{
+  "name": "04-19-phase3-candidate-signals-recall",
+  "title": "Phase 3: Candidate Confirmation, External Signals, Recall Loop",
+  "status": "planning",
+  "priority": "P0",
+  "assignee": "haor",
+  "created_at": "2026-04-18",
+  "description": "Implement the three critical missing features that differentiate MemexFlow from Cubox AI: (3A) Candidate confirmation flow, (3B) External signal discovery, (3C) Proactive knowledge recall. See prd.md for detailed requirements.",
+  "subtasks": [
+    {
+      "name": "3A: Candidate Confirmation",
+      "description": "Add status column to captures, stop auto-chaining extraction, add confirm/ignore UI",
+      "status": "pending"
+    },
+    {
+      "name": "3B: External Signals",
+      "description": "Add channel adapters (RSS, GitHub releases), signal_discoveries table, discovery capture flow",
+      "status": "pending"
+    },
+    {
+      "name": "3C: Recall Loop",
+      "description": "Add recalls table, recall heuristic job, recall page with revisit/dismiss actions",
+      "status": "pending"
+    }
+  ]
+}
