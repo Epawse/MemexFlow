@@ -575,3 +575,37 @@ Implemented the intelligence layer on top of the Phase 1 capture-to-memory pipel
 ### Next Steps
 
 - None - task complete
+
+
+## Session 11: Phase 3A: Candidate Confirmation Flow implementation
+
+**Date**: 2026-04-19
+**Task**: Phase 3A: Candidate Confirmation Flow implementation
+**Branch**: `main`
+
+### Summary
+
+Updated Trellis specs to reflect reality ([Current]/[Phase 3]/[Planned] markers), created Phase 3 task PRD, and implemented 3A candidate confirmation flow. Captures now default to status='pending', requiring explicit user confirmation before extraction.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `867128b` | (see git log) |
+| `bb0df45` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
