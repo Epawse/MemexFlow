@@ -21,6 +21,7 @@ TYPE_MAP = {
     "briefing": "briefing",
     "brief": "briefing",
     "signal": "signal",
+    "signal_scan": "signal_scan",
 }
 
 load_dotenv()

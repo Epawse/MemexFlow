@@ -76,7 +76,7 @@ src-tauri/                           # Tauri Rust backend (scaffolded)
 
 ### Key characteristics
 
-- **All hooks in one file**: `usePowerSyncQueries.ts` contains all 16+ query hooks and 10+ mutation functions. Each feature imports what it needs from this single file.
+- **All hooks in one file**: `usePowerSyncQueries.ts` contains all 20+ query hooks and 15+ mutation functions. Each feature imports what it needs from this single file.
 - **No per-feature hooks/**: Feature directories contain only page components — no nested `hooks/` or `components/` subdirectories.
 - **`lib/` not `core/`**: Shared infrastructure lives in `lib/`, not `core/`. Types are centralized in `lib/models.ts`, not in a separate `types/` directory.
 - **Dual-path data access**: `usePowerSyncQueries.ts` provides hooks that use PowerSync when available, falling back to direct Supabase queries.
@@ -84,24 +84,25 @@ src-tauri/                           # Tauri Rust backend (scaffolded)
 
 ---
 
-## [Phase 3] Planned Additions
+## [Phase 3] Implemented (2026-04-19)
+
+Phase 3A (Candidate Confirmation) and 3B (External Signals) are implemented.
 
 ```
 src/features/
 ├── captures/
 │   ├── CapturesPage.tsx           # Enhanced with status tabs (pending/confirmed/ignored)
 │   └── CaptureConfirmModal.tsx     # Confirm/ignore candidate captures
-├── signals/
-│   ├── SignalsPage.tsx            # Enhanced with channel type selector
-│   └── SignalDiscoveries.tsx      # External discoveries tab
-└── recall/
-    └── RecallPage.tsx             # NEW — proactive knowledge revisit
+└── signals/
+    └── SignalsPage.tsx            # Tabbed view: Matches | Discoveries, channel type selector
 ```
 
-Phase 3 adds:
+Implemented:
 - **Candidate confirmation** — status tabs on CapturesPage, confirm/ignore actions
-- **External signals** — channel type selector on SignalsPage, discoveries tab
-- **Recall** — new `/recall` route with revisit/dismiss actions
+- **External signals** — channel type selector (Internal/RSS/GitHub) on ProjectDetailPage, discoveries tab on SignalsPage
+
+Remaining:
+- **Recall** — new `/recall` route with revisit/dismiss actions (Phase 3C)
 
 ---
 

@@ -2,7 +2,7 @@ import { useQuery } from "@powersync/react";
 import { useState, useEffect, useCallback } from "react";
 import { getPowerSyncDb } from "../lib/powersync";
 import { supabase } from "../lib/supabase";
-import type { Project, Capture, Memory, Job, MemoryAssociation, RelationType, Brief, BriefMemory, SignalRule, SignalMatch, CaptureStatus } from "../lib/models";
+import type { Project, Capture, Memory, Job, MemoryAssociation, RelationType, Brief, BriefMemory, SignalRule, SignalMatch, SignalDiscovery, CaptureStatus, ChannelType } from "../lib/models";
 
 // ---------------------------------------------------------------------------
 // Project queries
@@ -751,13 +751,17 @@ export async function createSignalRule(params: {
   name: string;
   query: string;
   matchType?: "keyword" | "regex";
+  channelType?: ChannelType;
+  channelConfig?: Record<string, string>;
 }) {
   const id = crypto.randomUUID();
+  const channelType = params.channelType ?? "internal";
+  const channelConfigJson = JSON.stringify(params.channelConfig ?? {});
   const db = getPowerSyncDb();
   if (db) {
     await db.execute(
-      "INSERT INTO signal_rules (id, user_id, project_id, name, query, match_type, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, datetime('now'), datetime('now'))",
-      [id, params.userId, params.projectId, params.name, params.query, params.matchType ?? "keyword"],
+      "INSERT INTO signal_rules (id, user_id, project_id, name, query, match_type, channel_type, channel_config, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, datetime('now'), datetime('now'))",
+      [id, params.userId, params.projectId, params.name, params.query, params.matchType ?? "keyword", channelType, channelConfigJson],
     );
   } else {
     const { error } = await (supabase.from("signal_rules") as any).insert({
@@ -767,6 +771,8 @@ export async function createSignalRule(params: {
       name: params.name,
       query: params.query,
       match_type: params.matchType ?? "keyword",
+      channel_type: channelType,
+      channel_config: params.channelConfig ?? {},
     });
     if (error) throw error;
   }
@@ -826,6 +832,116 @@ export async function dismissMatch(matchId: string) {
     const { error } = await (supabase.from("signal_matches") as any).update({ is_dismissed: true }).eq("id", matchId);
     if (error) throw error;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Signal discovery queries & mutations
+// ---------------------------------------------------------------------------
+
+export function useDiscoveries(userId: string) {
+  const supabaseQuery = useCallback(async () => {
+    const { data, error } = await (supabase.from("signal_discoveries") as any)
+      .select("*")
+      .eq("user_id", userId)
+      .eq("is_captured", false)
+      .order("discovered_at", { ascending: false })
+      .limit(100);
+    if (error) throw error;
+    return (data ?? []) as SignalDiscovery[];
+  }, [userId]);
+
+  return useDataQuery<SignalDiscovery>(
+    "SELECT * FROM signal_discoveries WHERE user_id = ? AND is_captured = 0 ORDER BY discovered_at DESC LIMIT 100",
+    [userId],
+    supabaseQuery,
+    [userId],
+  );
+}
+
+export async function captureDiscovery(params: {
+  userId: string;
+  discovery: SignalDiscovery;
+  projectId?: string | null;
+}) {
+  const { userId, discovery, projectId } = params;
+  const captureId = crypto.randomUUID();
+  const now = new Date().toISOString();
+  const db = getPowerSyncDb();
+
+  // 1. Create pending capture
+  if (db) {
+    await db.execute(
+      "INSERT INTO captures (id, user_id, project_id, type, title, url, content, metadata, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, '', '{}', 'pending', ?, ?)",
+      [captureId, userId, projectId || discovery.project_id || null, "url", discovery.title, discovery.source_uri, now, now],
+    );
+  } else {
+    const { error: captureError } = await (supabase.from("captures") as any).insert({
+      id: captureId,
+      user_id: userId,
+      project_id: projectId || discovery.project_id,
+      type: "url",
+      title: discovery.title,
+      url: discovery.source_uri,
+      status: "pending",
+    });
+    if (captureError) throw captureError;
+  }
+
+  // 2. Create ingestion job
+  const jobId = crypto.randomUUID();
+  const jobInput = JSON.stringify({ capture_id: captureId, url: discovery.source_uri, user_id: userId });
+  if (db) {
+    await db.execute(
+      "INSERT INTO jobs (id, user_id, type, status, input, output, error, created_at, updated_at) VALUES (?, ?, 'ingestion', 'pending', ?, '', '', ?, ?)",
+      [jobId, userId, jobInput, now, now],
+    );
+  } else {
+    const { error: jobError } = await (supabase.from("jobs") as any).insert({
+      id: jobId,
+      user_id: userId,
+      type: "ingestion",
+      status: "pending",
+      input: { capture_id: captureId, url: discovery.source_uri, user_id: userId },
+    });
+    if (jobError) throw jobError;
+  }
+
+  // 3. Mark discovery as captured
+  if (db) {
+    await db.execute(
+      "UPDATE signal_discoveries SET is_captured = 1, capture_id = ? WHERE id = ?",
+      [captureId, discovery.id],
+    );
+  } else {
+    const { error: updateError } = await (supabase.from("signal_discoveries") as any)
+      .update({ is_captured: true, capture_id: captureId })
+      .eq("id", discovery.id);
+    if (updateError) throw updateError;
+  }
+
+  return captureId;
+}
+
+export async function createSignalScanJob(ruleId: string, userId: string) {
+  const jobId = crypto.randomUUID();
+  const now = new Date().toISOString();
+  const db = getPowerSyncDb();
+  if (db) {
+    await db.execute(
+      "INSERT INTO jobs (id, user_id, type, status, input, output, error, created_at, updated_at) VALUES (?, ?, 'signal_scan', 'pending', ?, '', '', ?, ?)",
+      [jobId, userId, JSON.stringify({ signal_rule_id: ruleId, user_id: userId }), now, now],
+    );
+  } else {
+    const { error } = await (supabase.from("jobs") as any).insert({
+      id: jobId,
+      user_id: userId,
+      type: "signal_scan",
+      status: "pending",
+      input: { signal_rule_id: ruleId, user_id: userId },
+    });
+    if (error) throw error;
+  }
+  return jobId;
 }
 
 // ---------------------------------------------------------------------------

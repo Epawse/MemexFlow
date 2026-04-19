@@ -30,6 +30,7 @@ export interface BriefMemory {
 }
 
 export type MatchType = "keyword" | "regex";
+export type ChannelType = "internal" | "rss" | "github_release";
 
 export interface SignalRule {
   id: string;
@@ -38,6 +39,8 @@ export interface SignalRule {
   name: string;
   query: string;
   match_type: MatchType;
+  channel_type: ChannelType;
+  channel_config: string; // JSON string in PowerSync, object in Supabase
   is_active: number;
   last_checked_at: string | null;
   created_at: string;
@@ -52,4 +55,19 @@ export interface SignalMatch {
   matched_text: string | null;
   is_dismissed: number;
   matched_at: string;
+}
+
+export interface SignalDiscovery {
+  id: string;
+  user_id: string;
+  signal_rule_id: string;
+  project_id: string | null;
+  source_type: "rss" | "github_release";
+  source_uri: string;
+  title: string;
+  summary: string | null;
+  published_at: string | null;
+  is_captured: number; // 0 or 1 in PowerSync
+  capture_id: string | null;
+  discovered_at: string;
 }

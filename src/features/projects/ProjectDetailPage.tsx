@@ -14,13 +14,14 @@ import {
   deleteSignalRule,
   toggleRuleActive,
   createSignalJob,
+  createSignalScanJob,
   updateProject,
   archiveProject,
   deleteProject,
   createBriefJob,
   deleteBrief,
 } from "../../hooks/usePowerSyncQueries";
-import type { Brief, SignalRule } from "../../lib/models";
+import type { Brief, SignalRule, ChannelType } from "../../lib/models";
 import { createCapture } from "../../lib/captures";
 import { Button } from "../../shared/components/Button";
 import { Input } from "../../shared/components/Input";
@@ -88,6 +89,10 @@ export function ProjectDetailPage() {
   // Signal state
   const [signalName, setSignalName] = useState("");
   const [signalQuery, setSignalQuery] = useState("");
+  const [channelType, setChannelType] = useState<ChannelType>("internal");
+  const [feedUrl, setFeedUrl] = useState("");
+  const [githubOwner, setGithubOwner] = useState("");
+  const [githubRepo, setGithubRepo] = useState("");
   const [creatingSignal, setCreatingSignal] = useState(false);
   const [runningSignalId, setRunningSignalId] = useState<string | null>(null);
 
@@ -136,16 +141,29 @@ export function ProjectDetailPage() {
 
   const handleCreateSignal = async () => {
     if (!user || !id || !signalName.trim() || !signalQuery.trim()) return;
+    if (channelType === "rss" && !feedUrl.trim()) return;
+    if (channelType === "github_release" && (!githubOwner.trim() || !githubRepo.trim())) return;
     setCreatingSignal(true);
     try {
+      const channelConfig: Record<string, string> = channelType === "rss"
+        ? { feed_url: feedUrl.trim() }
+        : channelType === "github_release"
+          ? { owner: githubOwner.trim(), repo: githubRepo.trim() }
+          : {};
       await createSignalRule({
         userId: user.id,
         projectId: id,
         name: signalName.trim(),
         query: signalQuery.trim(),
+        channelType,
+        channelConfig,
       });
       setSignalName("");
       setSignalQuery("");
+      setChannelType("internal");
+      setFeedUrl("");
+      setGithubOwner("");
+      setGithubRepo("");
       toast.success("Signal rule created");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Unknown error";
@@ -155,12 +173,18 @@ export function ProjectDetailPage() {
     }
   };
 
-  const handleRunSignal = async (ruleId: string) => {
+  const handleRunSignal = async (rule: SignalRule) => {
     if (!user) return;
-    setRunningSignalId(ruleId);
+    setRunningSignalId(rule.id);
     try {
-      await createSignalJob(ruleId, user.id);
-      toast.success("Signal check started", { description: "Matches will appear shortly." });
+      const channelType = rule.channel_type || "internal";
+      if (channelType === "internal") {
+        await createSignalJob(rule.id, user.id);
+        toast.success("Signal check started", { description: "Matches will appear shortly." });
+      } else {
+        await createSignalScanJob(rule.id, user.id);
+        toast.success("Signal scan started", { description: "Discoveries will appear shortly." });
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Unknown error";
       toast.error("Failed to run signal", { description: msg });
@@ -403,7 +427,7 @@ export function ProjectDetailPage() {
         <div>
           <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700/30 rounded-xl border border-gray-200 dark:border-gray-700">
             <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">New Signal Rule</h3>
-            <div className="flex gap-3">
+            <div className="flex gap-3 mb-3">
               <input type="text" placeholder="Rule name (e.g., 'RAG mentions')"
                 value={signalName} onChange={(e) => setSignalName(e.target.value)}
                 className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
@@ -411,11 +435,41 @@ export function ProjectDetailPage() {
                 value={signalQuery} onChange={(e) => setSignalQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleCreateSignal()}
                 className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
-              <Button size="sm" onClick={handleCreateSignal} loading={creatingSignal}
-                disabled={!signalName.trim() || !signalQuery.trim()}>
-                Add
-              </Button>
             </div>
+            <div className="mb-3">
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Source</label>
+              <div className="flex gap-4">
+                {([["internal", "Internal"], ["rss", "RSS"], ["github_release", "GitHub"]] as const).map(([value, label]) => (
+                  <label key={value} className="flex items-center gap-1.5 text-sm cursor-pointer">
+                    <input type="radio" name="channelType" value={value} checked={channelType === value}
+                      onChange={() => setChannelType(value as ChannelType)}
+                      className="text-primary-600 focus:ring-primary-500" />
+                    <span className="text-gray-700 dark:text-gray-300">{label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            {channelType === "rss" && (
+              <div className="mb-3">
+                <input type="url" placeholder="Feed URL (e.g., https://example.com/feed.xml)" value={feedUrl}
+                  onChange={(e) => setFeedUrl(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+              </div>
+            )}
+            {channelType === "github_release" && (
+              <div className="flex gap-2 mb-3">
+                <input type="text" placeholder="Owner (e.g., facebook)" value={githubOwner}
+                  onChange={(e) => setGithubOwner(e.target.value)}
+                  className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                <input type="text" placeholder="Repo (e.g., react)" value={githubRepo}
+                  onChange={(e) => setGithubRepo(e.target.value)}
+                  className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+              </div>
+            )}
+            <Button size="sm" onClick={handleCreateSignal} loading={creatingSignal}
+              disabled={!signalName.trim() || !signalQuery.trim() || (channelType === "rss" && !feedUrl.trim()) || (channelType === "github_release" && (!githubOwner.trim() || !githubRepo.trim()))}>
+              Add Rule
+            </Button>
           </div>
 
           {(signalRules ?? []).length === 0 ? (
@@ -428,6 +482,11 @@ export function ProjectDetailPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-medium text-gray-900 dark:text-white">{rule.name}</p>
+	                        {rule.channel_type !== "internal" && (
+	                          <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+	                            {rule.channel_type === "rss" ? "RSS" : "GitHub"}
+	                          </span>
+	                        )}
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                           rule.is_active
                             ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
@@ -449,7 +508,7 @@ export function ProjectDetailPage() {
                       <Button variant="text" size="sm" onClick={() => handleToggleSignal(rule.id, !!rule.is_active)}>
                         {rule.is_active ? "Pause" : "Activate"}
                       </Button>
-                      <Button size="sm" onClick={() => handleRunSignal(rule.id)}
+                      <Button size="sm" onClick={() => handleRunSignal(rule)}
                         loading={runningSignalId === rule.id}>
                         Run Now
                       </Button>

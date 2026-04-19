@@ -29,7 +29,12 @@ worker/
 │       ├── main.py               # Polling loop, job dispatch, claim/complete/fail
 │       ├── jobs/
 │       │   ├── __init__.py
-│       │   └── handlers.py       # All job handlers (echo, ingestion, extraction, briefing, signal)
+│       │   └── handlers.py       # All job handlers (echo, ingestion, extraction, briefing, signal, signal_scan)
+│       ├── channels/             # External signal channel adapters
+│       │   ├── __init__.py
+│       │   ├── base.py           # BaseChannel abstract class + DiscoveryItem dataclass
+│       │   ├── rss.py            # RSS/Atom feed adapter
+│       │   └── github_releases.py # GitHub releases adapter
 │       ├── services/
 │       │   └── __init__.py       # Empty — services not yet split out
 │       └── utils/
@@ -50,31 +55,22 @@ supabase/
 
 ### Key characteristics
 
-- **Monolithic handlers**: All 5 job handlers live in `handlers.py` (~470 lines). Each handler is a plain async function — no class hierarchy.
+- **Monolithic handlers**: All 7 job handlers (echo, ingestion, extraction, briefing, signal, signal_scan, confirm) live in `handlers.py`. Each handler is a plain async function — no class hierarchy.
+- **Channel adapters**: External signal scanning uses `channels/` package with `BaseChannel` ABC. RSS and GitHub releases are implemented; new channels add a class and register in `CHANNEL_MAP`.
 - **Job dispatch**: `main.py` maps job types to handlers via `TYPE_MAP` and `JOB_HANDLERS` dicts. Jobs are polled from Supabase `jobs` table and claimed atomically.
 - **No domain layer**: Business logic (LLM prompts, Supabase queries) is inline in handlers. No `core/`, `db/`, or `retrieval/` packages exist yet.
-- **No channels**: External content fetching is done directly in `handle_ingestion` via `httpx`. No channel adapters exist.
 
 ---
 
-## [Phase 3] Planned Additions
+## [Phase 3] Implemented (2026-04-19)
 
-```
-worker/src/worker/
-├── jobs/
-│   ├── handlers.py               # + handle_confirm, handle_signal_scan
-│   └── (handlers may be split into separate files if needed)
-└── channels/                     # External signal channel adapters
-    ├── __init__.py
-    ├── base.py                   # BaseChannel abstract class
-    ├── rss.py                    # RSS feed adapter
-    └── github_releases.py        # GitHub release adapter
-```
+Phase 3B (External Signals) has been implemented. The `channels/` package and `handle_signal_scan` handler are now live.
 
-Phase 3 adds:
-- **Candidate confirmation** — `handle_confirm` in handlers.py (or split out)
-- **External signal scanning** — `handle_signal_scan` + `channels/` package for RSS/GitHub
-- **Recall** — `handle_recall` in handlers.py
+- **External signal scanning** — `handle_signal_scan` in handlers.py + `channels/` package (RSS, GitHub releases)
+- **Candidate confirmation** — `handle_confirm` in handlers.py (Phase 3A)
+
+Remaining:
+- **Recall** — `handle_recall` in handlers.py (Phase 3C)
 
 ---
 
@@ -169,6 +165,13 @@ This architecture is the long-term target but is **not** currently implemented. 
 3. Add type mapping in `main.py` `TYPE_MAP` if job type name differs from handler name
 4. Update Supabase `jobs` table `type` CHECK constraint via migration
 
+### Adding a new channel adapter (current)
+
+1. Create `worker/src/worker/channels/<name>.py` implementing `BaseChannel`
+2. Implement `scan(config: dict, query: str) -> list[DiscoveryItem]`
+3. Register in `handlers.py` `CHANNEL_MAP`: `"<type>": <Name>Channel()`
+4. Add `channel_type` CHECK constraint value in migration if not `internal/rss/github_release`
+
 ---
 
 ## Naming Conventions
@@ -187,7 +190,8 @@ This architecture is the long-term target but is **not** currently implemented. 
 ## Examples
 
 - Job handler: `worker/src/worker/jobs/handlers.py` — all handlers live here currently
+- Channel adapter: `worker/src/worker/channels/rss.py` — RSS feed scanning
 - LLM utility: `worker/src/worker/utils/llm.py`
 - Supabase client: `worker/src/worker/utils/supabase.py`
 - Polling loop: `worker/src/worker/main.py`
-- Migration: `supabase/migrations/20260418030000_add_signal_rules_matches.sql`
+- Migration: `supabase/migrations/20260419010000_add_signal_discoveries.sql`

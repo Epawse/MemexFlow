@@ -12,6 +12,9 @@ from typing import TypedDict
 
 import httpx
 
+from ..channels.base import BaseChannel, DiscoveryItem
+from ..channels.rss import RSSChannel
+from ..channels.github_releases import GitHubReleasesChannel
 from ..utils.llm import call_llm, generate_embedding
 from ..utils.logging import logger
 from ..utils.supabase import get_supabase
@@ -472,6 +475,96 @@ async def handle_signal(input_data: dict[str, object]) -> dict[str, object]:
     return {"matches_found": len(new_matches)}
 
 
+CHANNEL_MAP: dict[str, BaseChannel] = {
+    "rss": RSSChannel(),
+    "github_release": GitHubReleasesChannel(),
+}
+
+
+async def handle_signal_scan(input_data: dict[str, object]) -> dict[str, object]:
+    """Scan an external channel (RSS/GitHub) for new discoveries."""
+    signal_rule_id = input_data.get("signal_rule_id", "")
+    user_id = input_data.get("user_id", "")
+    supabase = get_supabase()
+
+    if not signal_rule_id:
+        raise ValueError("signal_rule_id is required")
+
+    # Fetch the signal rule
+    rule_result = (
+        supabase.table("signal_rules")
+        .select("*")
+        .eq("id", signal_rule_id)
+        .execute()
+    )
+    if not rule_result.data:
+        raise ValueError(f"Signal rule {signal_rule_id} not found")
+
+    rule = rule_result.data[0]
+    channel_type = rule.get("channel_type", "internal")
+    channel_config = rule.get("channel_config", {})
+    if isinstance(channel_config, str):
+        channel_config = json.loads(channel_config)
+    query = rule.get("query", "")
+    project_id = rule.get("project_id")
+
+    # Select adapter
+    adapter = CHANNEL_MAP.get(channel_type)
+    if not adapter:
+        raise ValueError(f"Unknown channel type: {channel_type}")
+
+    # Scan the external source
+    items = await adapter.scan(channel_config, query)
+
+    if not items:
+        supabase.table("signal_rules").update({
+            "last_checked_at": "now()",
+        }).eq("id", signal_rule_id).execute()
+        return {"discoveries_found": 0, "new_discoveries": 0}
+
+    # Dedupe against existing discoveries (by source_uri + signal_rule_id)
+    existing_result = (
+        supabase.table("signal_discoveries")
+        .select("source_uri")
+        .eq("signal_rule_id", signal_rule_id)
+        .execute()
+    )
+    existing_uris = {d["source_uri"] for d in (existing_result.data or [])}
+
+    new_items = [item for item in items if item.source_uri not in existing_uris]
+
+    # Insert new discoveries
+    if new_items:
+        discovery_rows = [
+            {
+                "user_id": user_id,
+                "signal_rule_id": signal_rule_id,
+                "project_id": project_id,
+                "source_type": channel_type,
+                "source_uri": item.source_uri,
+                "title": item.title,
+                "summary": item.summary,
+                "published_at": item.published_at,
+            }
+            for item in new_items
+        ]
+        supabase.table("signal_discoveries").insert(discovery_rows).execute()
+
+    # Update last_checked_at
+    supabase.table("signal_rules").update({
+        "last_checked_at": "now()",
+    }).eq("id", signal_rule_id).execute()
+
+    logger.info(
+        "signal_scan_complete",
+        signal_rule_id=signal_rule_id,
+        channel_type=channel_type,
+        total_items=len(items),
+        new_discoveries=len(new_items),
+    )
+    return {"discoveries_found": len(items), "new_discoveries": len(new_items)}
+
+
 # Job type to handler mapping
 JOB_HANDLERS = {
     "echo": handle_echo,
@@ -479,4 +572,5 @@ JOB_HANDLERS = {
     "extraction": handle_extraction,
     "briefing": handle_briefing,
     "signal": handle_signal,
+    "signal_scan": handle_signal_scan,
 }

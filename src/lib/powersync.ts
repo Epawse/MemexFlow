@@ -184,6 +184,8 @@ const AppSchema = new Schema({
       name: column.text,
       query: column.text,
       match_type: column.text,
+      channel_type: column.text,
+      channel_config: column.text,
       is_active: column.integer,
       last_checked_at: column.text,
       created_at: column.text,
@@ -210,6 +212,30 @@ const AppSchema = new Schema({
       indexes: {
         idx_signal_matches_rule: ["signal_rule_id"],
         idx_signal_matches_user: ["user_id"],
+      },
+    },
+  ),
+  signal_discoveries: new Table(
+    {
+      id: column.text,
+      user_id: column.text,
+      signal_rule_id: column.text,
+      project_id: column.text,
+      source_type: column.text,
+      source_uri: column.text,
+      title: column.text,
+      summary: column.text,
+      published_at: column.text,
+      is_captured: column.integer,
+      capture_id: column.text,
+      discovered_at: column.text,
+    },
+    {
+      indexes: {
+        idx_signal_discoveries_user: ["user_id"],
+        idx_signal_discoveries_rule: ["signal_rule_id"],
+        idx_signal_discoveries_captured: ["is_captured"],
+        idx_signal_discoveries_discovered: ["discovered_at"],
       },
     },
   ),
@@ -256,6 +282,10 @@ class SupabaseConnector implements PowerSyncBackendConnector {
         const tableRef: any = supabase.from(op.table);
         const record = this._transformForSupabase(op.table, op.opData ?? {});
 
+        if (import.meta.env.DEV) {
+          console.debug(`[PowerSync] Upload ${op.op} on ${op.table}:`, record);
+        }
+
         switch (op.op) {
           case "PUT":
             await tableRef.upsert(record);
@@ -294,6 +324,7 @@ class SupabaseConnector implements PowerSyncBackendConnector {
       memories: ["metadata"],
       briefs: ["metadata"],
       signals: ["metadata", "related_memory_ids"],
+      signal_rules: ["channel_config"],
       users: ["preferences"],
     };
     const cols = JSONB_COLUMNS[table];
@@ -357,6 +388,11 @@ async function setupFTS5(db: PowerSyncDatabase) {
 let _powerSyncDb: PowerSyncDatabase | null = null;
 let _connector: SupabaseConnector | null = null;
 let _initialized = false;
+const _syncStatus = {
+  connected: false,
+  lastSyncAt: null as Date | null,
+  downloadError: null as string | null,
+};
 
 export function getPowerSyncDb(): PowerSyncDatabase | null {
   if (!import.meta.env.VITE_POWERSYNC_URL) {
@@ -410,30 +446,107 @@ export async function initPowerSync() {
   }
 
   await powerSyncDb.init();
-  if (import.meta.env.DEV) console.debug("[PowerSync] Database initialized, connecting...");
+  console.info("[PowerSync] Database initialized, connecting...");
 
   await powerSyncDb.connect(connector);
-  if (import.meta.env.DEV) console.debug("[PowerSync] connect() resolved");
+  console.info("[PowerSync] connect() resolved");
 
   await setupFTS5(powerSyncDb);
 
-  if (import.meta.env.DEV) {
-    // Expose for ad-hoc debugging: window.__psdb.getAll("SELECT ...")
-    (window as unknown as { __psdb: unknown }).__psdb = powerSyncDb;
-  }
+  // Expose for ad-hoc debugging: window.__psdb.getAll("SELECT ...")
+  // and window.__psDebug() for sync diagnostics
+  (window as unknown as { __psdb: unknown }).__psdb = powerSyncDb;
+  (window as unknown as { __psDebug: unknown }).__psDebug = debugPowerSyncTables;
 
   powerSyncDb.registerListener({
     statusChanged: (status) => {
-      if (import.meta.env.DEV) {
-        console.debug("[PowerSync] Status:", {
-          connected: status.connected,
-          connecting: status.connecting,
-          hasSynced: status.hasSynced,
-          uploading: status.dataFlowStatus?.uploading,
-          downloading: status.dataFlowStatus?.downloading,
-          downloadError: status.dataFlowStatus?.downloadError?.message,
-        });
+      _syncStatus.connected = status.connected;
+      if (status.connected) {
+        _syncStatus.lastSyncAt = new Date();
       }
+      _syncStatus.downloadError = status.dataFlowStatus?.downloadError?.message ?? null;
+      console.info("[PowerSync] Status:", {
+        connected: status.connected,
+        connecting: status.connecting,
+        hasSynced: status.hasSynced,
+        uploading: status.dataFlowStatus?.uploading,
+        downloading: status.dataFlowStatus?.downloading,
+        downloadError: status.dataFlowStatus?.downloadError?.message,
+      });
     },
   });
+}
+
+/** Disconnect and reconnect PowerSync to pick up sync config changes. */
+export async function reconnectPowerSync() {
+  const db = getPowerSyncDb();
+  const connector = getConnector();
+  if (!db || !connector) {
+    throw new Error("PowerSync not configured — VITE_POWERSYNC_URL is missing");
+  }
+
+  // Verify auth session exists before reconnecting
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (!sessionData?.session) {
+    throw new Error("No auth session — please sign in again");
+  }
+
+  console.info("[PowerSync] Reconnecting...");
+  try {
+    await db.disconnect();
+    console.info("[PowerSync] Disconnected, reconnecting...");
+  } catch {
+    console.warn("[PowerSync] Disconnect failed, proceeding with connect");
+  }
+
+  // Small delay to let disconnect fully settle
+  await new Promise((r) => setTimeout(r, 500));
+
+  // Connect with a timeout so it doesn't spin forever
+  const connectPromise = db.connect(connector);
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error("PowerSync connect timed out after 10s — check if the PowerSync service is reachable")), 10_000),
+  );
+  await Promise.race([connectPromise, timeoutPromise]);
+  console.info("[PowerSync] Reconnected");
+}
+
+/** Check local PowerSync tables and log row counts for diagnostics. */
+export async function debugPowerSyncTables() {
+  const db = getPowerSyncDb();
+  if (!db) {
+    console.warn("[PowerSync Debug] Not configured — VITE_POWERSYNC_URL is not set");
+    return null;
+  }
+
+  // Auth session check
+  const { data: sessionData } = await supabase.auth.getSession();
+  const session = sessionData?.session;
+  console.info("[PowerSync Debug] Auth session:", session
+    ? { user: session.user.email, expiresAt: session.expires_at ? new Date(session.expires_at * 1000).toISOString() : "unknown" }
+    : "NO SESSION",
+  );
+  console.info("[PowerSync Debug] PowerSync URL:", import.meta.env.VITE_POWERSYNC_URL || "NOT SET");
+
+  const tables = [
+    "projects", "captures", "memories", "briefs", "signals",
+    "signal_rules", "signal_matches", "signal_discoveries",
+    "memory_associations", "brief_memories", "jobs",
+  ];
+
+  console.group("[PowerSync Debug] Local table row counts");
+  for (const table of tables) {
+    try {
+      const result = await db.execute(`SELECT count(*) as cnt FROM ${table}`);
+      const row = result.rows?.item?.(0) ?? result.rows?._array?.[0];
+      const count = row?.cnt ?? "?";
+      console.info(`  ${table}: ${count}`);
+    } catch (err) {
+      console.info(`  ${table}: (error — ${err})`);
+    }
+  }
+  console.groupEnd();
+
+  console.info("[PowerSync Debug] Sync status:", _syncStatus);
+  return { ..._syncStatus, hasAuthSession: !!session };
 }

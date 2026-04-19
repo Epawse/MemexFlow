@@ -12,7 +12,7 @@ streams:
 
   captures:
     auto_subscribe: true
-    query: SELECT id, user_id, project_id, type, title, content, url, metadata, created_at, updated_at FROM captures WHERE user_id = auth.user_id()
+    query: SELECT id, user_id, project_id, type, title, content, url, metadata, status, confirmed_at, created_at, updated_at FROM captures WHERE user_id = auth.user_id()
 
   memories:
     auto_subscribe: true
@@ -25,6 +25,26 @@ streams:
   signals:
     auto_subscribe: true
     query: SELECT id, user_id, project_id, type, title, description, confidence, related_memory_ids, metadata, created_at, updated_at FROM signals WHERE user_id = auth.user_id()
+
+  signal_rules:
+    auto_subscribe: true
+    query: SELECT id, user_id, project_id, name, query, match_type, channel_type, channel_config, is_active, last_checked_at, created_at, updated_at FROM signal_rules WHERE user_id = auth.user_id()
+
+  signal_matches:
+    auto_subscribe: true
+    query: SELECT id, user_id, signal_rule_id, memory_id, matched_text, is_dismissed, matched_at FROM signal_matches WHERE user_id = auth.user_id()
+
+  signal_discoveries:
+    auto_subscribe: true
+    query: SELECT id, user_id, signal_rule_id, project_id, source_type, source_uri, title, summary, published_at, is_captured, capture_id, discovered_at FROM signal_discoveries WHERE user_id = auth.user_id()
+
+  memory_associations:
+    auto_subscribe: true
+    query: SELECT id, user_id, from_memory_id, to_memory_id, relation_type, note, created_at FROM memory_associations WHERE user_id = auth.user_id()
+
+  brief_memories:
+    auto_subscribe: true
+    query: SELECT brief_id, memory_id, relevance FROM brief_memories
 
   jobs:
     auto_subscribe: true
