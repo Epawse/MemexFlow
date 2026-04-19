@@ -609,3 +609,53 @@ Updated Trellis specs to reflect reality ([Current]/[Phase 3]/[Planned] markers)
 ### Next Steps
 
 - None - task complete
+
+
+## Session 12: Phase 3B: External Signal Channels (RSS + GitHub)
+
+**Date**: 2026-04-19
+**Task**: Phase 3B: External Signal Channels (RSS + GitHub)
+**Branch**: `main`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+| Area | What Changed |
+|------|-------------|
+| **Migration** | `signal_discoveries` table, `channel_type`/`channel_config` on `signal_rules`, RLS, indexes, jobs constraint update |
+| **Worker channels/** | `BaseChannel` ABC + `DiscoveryItem` dataclass, `RSSChannel` (RSS 2.0 + Atom), `GitHubReleasesChannel` |
+| **Worker handlers** | `handle_signal_scan` — fetch rule → select adapter → scan → dedupe by source_uri → insert discoveries |
+| **Worker dispatch** | `signal_scan` added to `TYPE_MAP` and `JOB_HANDLERS` |
+| **PowerSync schema** | `signal_discoveries` table, `channel_type`/`channel_config` columns on `signal_rules`, JSONB transform for `channel_config` |
+| **Sync config** | Added streams for `signal_rules`, `signal_matches`, `signal_discoveries`, `memory_associations`, `brief_memories` |
+| **Frontend types** | `ChannelType`, `SignalDiscovery` interface, updated `SignalRule` with `channel_type`/`channel_config` |
+| **Frontend hooks** | `useDiscoveries`, `captureDiscovery`, `createSignalScanJob`, updated `createSignalRule` |
+| **ProjectDetailPage** | Channel type radio (Internal/RSS/GitHub) + conditional config fields on signal rule form |
+| **SignalsPage** | Tabbed view (Matches \| Discoveries), discovery cards with capture button, sync warning + debug/reconnect |
+| **PowerSync debug** | `reconnectPowerSync()`, `debugPowerSyncTables()`, auth session check, sync status tracking |
+
+**Key Debugging Insight**: After deploying new PowerSync sync streams, the app must be fully restarted — `disconnect + connect` is insufficient for picking up new table streams. Added debug/reconnect UI to SignalsPage for future troubleshooting.
+
+**Updated Specs**: Backend and frontend directory-structure docs updated to reflect Phase 3A/3B completion.
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7a19fce` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

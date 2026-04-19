@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 11
+- **Total Sessions**: 12
 - **Last Active**: 2026-04-19
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~611 | Active |
+| `journal-1.md` | ~661 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 12 | 2026-04-19 | Phase 3B: External Signal Channels (RSS + GitHub) | `7a19fce` | `main` |
 | 11 | 2026-04-19 | Phase 3A: Candidate Confirmation Flow implementation | `867128b`, `bb0df45` | `main` |
 | 10 | 2026-04-18 | Phase 2: Briefs, Signals & Enhanced Memory | `89eca85`, `fa6f451`, `86c68b3`, `54f70e0`, `5e7979f`, `6a78137`, `24fb685`, `36350c6` | `main` |
 | 9 | 2026-04-18 | Phase 1 Follow-ups: ESLint, Tests, Row Types, Migration | `8463003`, `51cb5fa` | `main` |

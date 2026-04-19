@@ -15,7 +15,7 @@
     {
       "name": "3B: External Signals",
       "description": "Add channel adapters (RSS, GitHub releases), signal_discoveries table, discovery capture flow",
-      "status": "in_progress"
+      "status": "completed"
     },
     {
       "name": "3C: Recall Loop",
