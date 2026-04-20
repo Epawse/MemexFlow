@@ -15,6 +15,7 @@ import { Button } from "../../shared/components/Button";
 import { EmptyState } from "../../shared/components/EmptyState";
 import { Spinner } from "../../shared/components/Spinner";
 import { Modal } from "../../shared/components/Modal";
+import { Input } from "../../shared/components/Input";
 
 type CaptureTitleRow = { id: string; title: string | null };
 
@@ -204,12 +205,11 @@ export function MemoriesPage() {
 
       {/* Search bar */}
       <div className="mt-4">
-        <input
+        <Input
           type="text"
           placeholder="Search memories..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           aria-label="Search memories"
         />
       </div>
@@ -413,12 +413,11 @@ export function MemoriesPage() {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Note (optional)
             </label>
-            <input
+            <Input
               type="text"
               value={linkNote}
               onChange={(e) => setLinkNote(e.target.value)}
               placeholder="Why are these related?"
-              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
 

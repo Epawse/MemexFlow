@@ -13,18 +13,8 @@ import { Card } from "../../shared/components/Card";
 import { EmptyState } from "../../shared/components/EmptyState";
 import { Spinner } from "../../shared/components/Spinner";
 import { Button } from "../../shared/components/Button";
-
-const STATUS_STYLES: Record<string, string> = {
-  pending: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-  confirmed: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-  ignored: "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400",
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  pending: "Pending",
-  confirmed: "Confirmed",
-  ignored: "Ignored",
-};
+import { CAPTURE_STATUS_BADGE } from "../../shared/constants";
+import { renderContent } from "../../shared/utils/renderContent";
 
 function getCaptureJob(jobs: Job[], captureId: string): Job | null {
   return (
@@ -168,8 +158,8 @@ export function CaptureDetailPage() {
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex-1 min-w-0">
           {capture.title}
         </h1>
-        <span className={`text-xs px-2.5 py-1 rounded-full font-medium flex-shrink-0 ${STATUS_STYLES[status] || STATUS_STYLES.pending}`}>
-          {STATUS_LABELS[status] || status}
+        <span className={`text-xs px-2.5 py-1 rounded-full font-medium flex-shrink-0 ${CAPTURE_STATUS_BADGE[status] || CAPTURE_STATUS_BADGE.pending}`}>
+          {status.charAt(0).toUpperCase() + status.slice(1)}
         </span>
       </div>
 
@@ -226,9 +216,7 @@ export function CaptureDetailPage() {
         <div className="mb-6">
           <h2 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Content</h2>
           <div className="prose prose-sm dark:prose-invert max-w-none bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-            <div className="whitespace-pre-wrap text-sm text-gray-800 dark:text-gray-200 leading-relaxed">
-              {capture.content}
-            </div>
+            {renderContent(capture.content, null, new Map())}
           </div>
         </div>
       ) : (
