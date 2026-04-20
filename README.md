@@ -20,6 +20,19 @@ Capture → Memory → Brief
 
 All AI outputs carry source attribution and confidence scores. Memories link to each other with evidence relations (supports / contradicts / elaborates / related).
 
+## Screenshots
+
+<table>
+  <tr>
+    <td><img src="docs/screenshots/dashboard.png" alt="Dashboard" width="400" /><br><b>Dashboard</b> — Overview with stats, recall suggestions, and priority items</td>
+    <td><img src="docs/screenshots/topics.png" alt="Topics" width="400" /><br><b>Topics</b> — Organize research into topics with color coding</td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/captures.png" alt="Captures" width="400" /><br><b>Captures</b> — Save URLs and notes, confirm to extract memories</td>
+    <td><img src="docs/screenshots/memories.png" alt="Memories" width="400" /><br><b>Memories</b> — Structured knowledge units with associations</td>
+  </tr>
+</table>
+
 ## Architecture
 
 ```
@@ -111,7 +124,7 @@ supabase/
 - ✅ Phase 0: Foundation (scaffold, Supabase, PowerSync, auth)
 - ✅ Phase 1: Capture & Memory pipeline
 - ✅ Phase 2: Briefs & Signals
-- 🔧 Phase 3: Recall & Polish (in progress)
+- ✅ Phase 3: Recall & Polish
 
 ## License
 

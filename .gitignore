@@ -60,8 +60,10 @@ lerna-debug.log*
 KnowledgeClaw.md
 MemexFlow-2026Q2-Strategy.md
 
-# Internal docs (troubleshooting etc.)
-docs/
+# Internal docs (keep screenshots for README)
+docs/*
+!docs/screenshots/
+!docs/screenshots/*
 
 # OS
 Thumbs.db
