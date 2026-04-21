@@ -36,7 +36,7 @@ export function DashboardLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] dark:bg-[#0f0f11] flex">
+    <div className="h-screen bg-[#FDFBF7] dark:bg-[#0f0f11] flex overflow-hidden">
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/30 backdrop-blur-sm z-20 lg:hidden"
@@ -49,7 +49,7 @@ export function DashboardLayout() {
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full overflow-y-auto">
           <div className="px-6 py-5">
             <h1 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">
               MemexFlow
@@ -119,7 +119,7 @@ export function DashboardLayout() {
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="lg:hidden bg-white/80 dark:bg-white/[0.06] backdrop-blur-xl border-b border-gray-200/60 dark:border-white/[0.08] px-4 py-3 flex items-center gap-3">
           <button
             onClick={() => setSidebarOpen(true)}
