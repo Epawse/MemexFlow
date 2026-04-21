@@ -34,7 +34,7 @@ import { TOPIC_COLORS, TYPE_ICONS } from "../../shared/constants";
 import { Tabs } from "../../shared/components/Tabs";
 import { StatusBadge } from "../../shared/components/StatusBadge";
 import { renderContent } from "../../shared/utils/renderContent";
-
+import { formatDate } from "../../lib/date";
 type Tab = "captures" | "memories" | "briefs" | "signals" | "settings";
 
 export function ProjectDetailPage() {
@@ -326,7 +326,7 @@ export function ProjectDetailPage() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{capture.title}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{new Date(capture.created_at).toLocaleDateString()}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{formatDate(capture.created_at)}</p>
                     </div>
                   </div>
                 </Card>
@@ -374,7 +374,7 @@ export function ProjectDetailPage() {
                           ))}
                         </ul>
                       )}
-                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">{new Date(memory.created_at).toLocaleDateString()}</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">{formatDate(memory.created_at)}</p>
                       {isExpanded && (
                         <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
                           <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{memory.content}</p>
@@ -480,7 +480,7 @@ export function ProjectDetailPage() {
                       </p>
                       {rule.last_checked_at && (
                         <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                          {t("topics.lastChecked")}: {new Date(rule.last_checked_at).toLocaleDateString()}
+                          {t("topics.lastChecked")}: {formatDate(rule.last_checked_at)}
                         </p>
                       )}
                     </div>
@@ -629,7 +629,7 @@ function BriefsTab({
                   </div>
                 </div>
                 <span className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">
-                  {new Date(brief.created_at).toLocaleDateString()}
+                  {formatDate(brief.created_at)}
                 </span>
               </div>
             </Card>

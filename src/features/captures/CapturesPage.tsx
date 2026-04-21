@@ -13,7 +13,7 @@ import { Spinner } from "../../shared/components/Spinner";
 import { Input } from "../../shared/components/Input";
 import { TYPE_ICONS, CAPTURE_STATUS_BADGE, JOB_STATUS_BADGE } from "../../shared/constants";
 import { Tabs } from "../../shared/components/Tabs";
-
+import { formatDate } from "../../lib/date";
 type CaptureTab = "all" | "pending" | "confirmed" | "ignored";
 
 export function CapturesPage() {
@@ -307,7 +307,7 @@ export function CapturesPage() {
                       {job && capture.status === "confirmed" && jobStatusBadge(job)}
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                      {new Date(capture.created_at).toLocaleDateString()} · {capture.type}
+                      {formatDate(capture.created_at)} · {capture.type}
                     </p>
                     {job?.status === "failed" && (
                       <div className="mt-2 flex items-center gap-2">

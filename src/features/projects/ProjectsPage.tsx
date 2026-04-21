@@ -11,7 +11,7 @@ import { Card } from "../../shared/components/Card";
 import { EmptyState } from "../../shared/components/EmptyState";
 import { Spinner } from "../../shared/components/Spinner";
 import { TOPIC_COLORS } from "../../shared/constants";
-
+import { formatDate } from "../../lib/date";
 export function ProjectsPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -132,7 +132,7 @@ export function ProjectsPage() {
                     </p>
                   )}
                   <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                    {t("common.updated")} {new Date(project.updated_at).toLocaleDateString()}
+                    {t("common.updated")} {formatDate(project.updated_at)}
                   </p>
                 </div>
               </div>

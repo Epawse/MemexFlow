@@ -21,7 +21,7 @@ import { Spinner } from "../../shared/components/Spinner";
 import { Button } from "../../shared/components/Button";
 import { TYPE_ICONS } from "../../shared/constants";
 import { PriorityBadge } from "../../shared/components/PriorityBadge";
-
+import { formatDate } from "../../lib/date";
 export function DashboardPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -266,7 +266,7 @@ export function DashboardPage() {
                             {capture.title}
                           </p>
                           <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {new Date(capture.created_at).toLocaleDateString()}
+                            {formatDate(capture.created_at)}
                           </p>
                         </div>
                       </div>
@@ -317,7 +317,7 @@ export function DashboardPage() {
                           )}
                         </div>
                         <p className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">
-                          {new Date(project.updated_at).toLocaleDateString()}
+                          {formatDate(project.updated_at)}
                         </p>
                       </div>
                     </Card>

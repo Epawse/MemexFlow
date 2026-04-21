@@ -16,7 +16,7 @@ import { Spinner } from "../../shared/components/Spinner";
 import { Button } from "../../shared/components/Button";
 import { CAPTURE_STATUS_BADGE } from "../../shared/constants";
 import { renderContent } from "../../shared/utils/renderContent";
-
+import { formatDate } from "../../lib/date";
 function getCaptureJob(jobs: Job[], captureId: string): Job | null {
   return (
     jobs.find((j) => {
@@ -166,7 +166,7 @@ export function CaptureDetailPage() {
       </div>
 
       <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400 mb-6">
-        <span>{new Date(capture.created_at).toLocaleDateString()}</span>
+        <span>{formatDate(capture.created_at)}</span>
         <span>·</span>
         <span className="capitalize">{capture.type}</span>
         {job?.status === "processing" && (

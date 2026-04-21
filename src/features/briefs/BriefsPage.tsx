@@ -10,7 +10,7 @@ import { Spinner } from "../../shared/components/Spinner";
 import { StatusBadge } from "../../shared/components/StatusBadge";
 import { Button } from "../../shared/components/Button";
 import { Tabs } from "../../shared/components/Tabs";
-
+import { formatDate } from "../../lib/date";
 type BriefFilter = "all" | "completed" | "processing" | "failed";
 
 export function BriefsPage() {
@@ -136,7 +136,7 @@ export function BriefsPage() {
                   </div>
                 </div>
                 <span className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">
-                  {new Date(brief.created_at).toLocaleDateString()}
+                  {formatDate(brief.created_at)}
                 </span>
               </div>
               {brief.status === "completed" && brief.content && (

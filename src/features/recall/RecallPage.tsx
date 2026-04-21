@@ -15,7 +15,7 @@ import { Spinner } from "../../shared/components/Spinner";
 import { Button } from "../../shared/components/Button";
 import type { Recall } from "../../lib/models";
 import { PriorityBadge } from "../../shared/components/PriorityBadge";
-
+import { formatDate } from "../../lib/date";
 export function RecallPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -146,7 +146,7 @@ export function RecallPage() {
                       </p>
                     )}
                     <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                      {t("common.suggested")} {new Date(recall.scheduled_at).toLocaleDateString()}
+                      {t("common.suggested")} {formatDate(recall.scheduled_at)}
                     </p>
                   </div>
                   <div className="flex gap-1.5 flex-shrink-0">

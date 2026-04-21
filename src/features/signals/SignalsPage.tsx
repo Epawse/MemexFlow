@@ -16,7 +16,7 @@ import { Button } from "../../shared/components/Button";
 import { Tabs } from "../../shared/components/Tabs";
 import { getPowerSyncDb, reconnectPowerSync, debugPowerSyncTables } from "../../lib/powersync";
 import type { SignalDiscovery } from "../../lib/models";
-
+import { formatDate } from "../../lib/date";
 type Tab = "matches" | "discoveries";
 
 export function SignalsPage() {
@@ -205,7 +205,7 @@ export function SignalsPage() {
                           <span className="text-xs text-gray-500 dark:text-gray-400">{project.title}</span>
                         )}
                         <span className="text-xs text-gray-400 dark:text-gray-500">
-                          {new Date(match.matched_at).toLocaleDateString()}
+                          {formatDate(match.matched_at)}
                         </span>
                       </div>
                     </div>
@@ -264,7 +264,7 @@ export function SignalsPage() {
                         </a>
                         {discovery.published_at && (
                           <span className="text-xs text-gray-400 dark:text-gray-500">
-                            {new Date(discovery.published_at).toLocaleDateString()}
+                            {formatDate(discovery.published_at)}
                           </span>
                         )}
                       </div>

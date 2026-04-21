@@ -17,7 +17,7 @@ import { EmptyState } from "../../shared/components/EmptyState";
 import { Spinner } from "../../shared/components/Spinner";
 import { Modal } from "../../shared/components/Modal";
 import { Input } from "../../shared/components/Input";
-
+import { formatDate } from "../../lib/date";
 type CaptureTitleRow = { id: string; title: string | null };
 
 const RELATION_COLORS: Record<RelationType, string> = {
@@ -318,7 +318,7 @@ export function MemoriesPage() {
                       {renderAssociationBadges(memoryRow.id)}
                     </div>
                     <span className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">
-                      {new Date(memoryRow.created_at).toLocaleDateString()}
+                      {formatDate(memoryRow.created_at)}
                     </span>
                   </div>
 

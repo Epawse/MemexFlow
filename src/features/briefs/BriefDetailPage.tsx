@@ -12,7 +12,7 @@ import { Spinner } from "../../shared/components/Spinner";
 import { Button } from "../../shared/components/Button";
 import { toast } from "sonner";
 import { renderContent } from "../../shared/utils/renderContent";
-
+import { formatDate } from "../../lib/date";
 export function BriefDetailPage() {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
@@ -148,7 +148,7 @@ function BriefDetail({
       )}
 
       <p className="mt-4 text-xs text-gray-400 dark:text-gray-500">
-        {t("briefs.generatedAt")} {new Date(brief.created_at).toLocaleDateString()}
+        {t("briefs.generatedAt")} {formatDate(brief.created_at)}
       </p>
     </div>
   );
