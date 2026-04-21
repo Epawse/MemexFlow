@@ -25,24 +25,24 @@ describe("normalizeUrl", () => {
   });
 
   it("rejects an empty string", () => {
-    expect(() => normalizeUrl("")).toThrow("URL is required");
-    expect(() => normalizeUrl("   ")).toThrow("URL is required");
+    expect(() => normalizeUrl("")).toThrow("captures.urlRequired");
+    expect(() => normalizeUrl("   ")).toThrow("captures.urlRequired");
   });
 
   it("rejects numeric input (prevents IPv4 coercion by new URL)", () => {
-    expect(() => normalizeUrl("123")).toThrow(/doesn't look like a valid URL/);
+    expect(() => normalizeUrl("123")).toThrow("captures.invalidUrl");
   });
 
   it("rejects input without a TLD", () => {
     expect(() => normalizeUrl("notaurl")).toThrow(
-      /doesn't look like a valid URL/,
+      "captures.invalidUrl",
     );
   });
 
   it("rejects input that parses but has no hostname", () => {
     // new URL("https://") throws, so this hits the parse-error branch.
     expect(() => normalizeUrl("https://")).toThrow(
-      /doesn't look like a valid URL/,
+      "captures.invalidUrl",
     );
   });
 });

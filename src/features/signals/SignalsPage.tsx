@@ -1,8 +1,14 @@
 import { useState } from "react";
 import { useAuth } from "../../lib/AuthProvider";
-import { useUndismissedSignalMatches, useDiscoveries, dismissMatch, captureDiscovery } from "../../hooks/usePowerSyncQueries";
+import {
+  useUndismissedSignalMatches,
+  useDiscoveries,
+  dismissMatch,
+  captureDiscovery,
+} from "../../hooks/usePowerSyncQueries";
 import { useQuery, useStatus } from "@powersync/react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { Card } from "../../shared/components/Card";
 import { EmptyState } from "../../shared/components/EmptyState";
 import { Spinner } from "../../shared/components/Spinner";
@@ -14,6 +20,7 @@ import type { SignalDiscovery } from "../../lib/models";
 type Tab = "matches" | "discoveries";
 
 export function SignalsPage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const userId = user?.id ?? "";
   const [activeTab, setActiveTab] = useState<Tab>("matches");
@@ -70,10 +77,10 @@ export function SignalsPage() {
   const handleDismiss = async (matchId: string) => {
     try {
       await dismissMatch(matchId);
-      toast.success("Match dismissed");
+      toast.success(t("signals.dismissed"));
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      toast.error("Failed to dismiss", { description: msg });
+      const msg = err instanceof Error ? err.message : t("common.error");
+      toast.error(t("signals.dismissFailed"), { description: msg });
     }
   };
 
@@ -85,12 +92,12 @@ export function SignalsPage() {
         userId: user.id,
         discovery,
       });
-      toast.success("Discovery captured", {
-        description: "It will appear in your Captures for confirmation.",
+      toast.success(t("signals.captured"), {
+        description: t("signals.capturedDesc"),
       });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      toast.error("Failed to capture discovery", { description: msg });
+      const msg = err instanceof Error ? err.message : t("common.error");
+      toast.error(t("signals.captureFailed"), { description: msg });
     } finally {
       setCapturingId(null);
     }
@@ -100,8 +107,8 @@ export function SignalsPage() {
   const discoveriesCount = (discoveries ?? []).length;
 
   const tabItems = [
-    { key: "matches", label: "Matches", badge: matchesCount },
-    { key: "discoveries", label: "Discoveries", badge: discoveriesCount },
+    { key: "matches", label: t("signals.matches"), badge: matchesCount },
+    { key: "discoveries", label: t("signals.discoveries"), badge: discoveriesCount },
   ];
 
   const [reconnecting, setReconnecting] = useState(false);
@@ -110,10 +117,10 @@ export function SignalsPage() {
     setReconnecting(true);
     try {
       await reconnectPowerSync();
-      toast.success("PowerSync reconnected");
+      toast.success(t("common.reconnected"));
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      toast.error("Reconnect failed", { description: msg });
+      const msg = err instanceof Error ? err.message : t("common.error");
+      toast.error(t("common.reconnectFailed"), { description: msg });
     } finally {
       setReconnecting(false);
     }
@@ -121,8 +128,8 @@ export function SignalsPage() {
 
   const handleDebug = async () => {
     const status = await debugPowerSyncTables();
-    toast.info("Debug info logged to console", {
-      description: `Connected: ${status?.connected ?? "N/A"}, Last sync: ${status?.lastSyncAt?.toLocaleTimeString() ?? "never"}`,
+    toast.info(t("common.debugInfo"), {
+      description: `${t("common.connected")}: ${status?.connected ?? "N/A"}, ${t("common.lastSync")}: ${status?.lastSyncAt?.toLocaleTimeString() ?? "never"}`,
     });
   };
 
@@ -137,15 +144,15 @@ export function SignalsPage() {
           <div className="flex items-center justify-between">
             <div className="text-sm text-amber-800 dark:text-amber-300">
               {!syncStatus?.connected
-                ? "PowerSync is disconnected — data may not sync."
-                : "No data found. If you have signal rules/discoveries in Supabase, try reconnecting."}
+                ? t("common.powersyncDisconnected")
+                : t("common.noDataFound")}
             </div>
             <div className="flex gap-2">
               <Button variant="text" size="sm" onClick={handleDebug}>
-                Debug
+                {t("common.debug")}
               </Button>
               <Button variant="secondary" size="sm" onClick={handleReconnect} loading={reconnecting}>
-                Reconnect
+                {t("common.reconnect")}
               </Button>
             </div>
           </div>
@@ -153,9 +160,9 @@ export function SignalsPage() {
       )}
 
       <div>
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Signals</h2>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t("signals.title")}</h2>
         <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-          Keyword matches and external discoveries
+          {t("signals.description")}
         </p>
       </div>
 
@@ -168,12 +175,12 @@ export function SignalsPage() {
 
       {activeTab === "matches" && (
         matchesLoading ? <Spinner className="mt-8" /> :
-        matchesError ? <EmptyState className="mt-8" title="Couldn't load signals" description={matchesError} /> :
+        matchesError ? <EmptyState className="mt-8" title={t("common.error")} description={matchesError} /> :
         matchesCount === 0 ? (
           <EmptyState
             className="mt-8"
-            title="No signal matches"
-            description="Create a signal rule in a topic to start monitoring for keyword matches."
+            title={t("signals.noMatches")}
+            description={t("signals.noMatchesDesc")}
           />
         ) : (
           <div className="mt-6 space-y-3">
@@ -186,7 +193,7 @@ export function SignalsPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-gray-900 dark:text-white">
-                        {rule?.name || "Unknown Rule"}
+                        {rule?.name || t("signals.unknownRule")}
                       </p>
                       {match.matched_text && (
                         <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
@@ -203,7 +210,7 @@ export function SignalsPage() {
                       </div>
                     </div>
                     <Button variant="text" size="sm" onClick={() => handleDismiss(match.id)}>
-                      Dismiss
+                      {t("recall.dismiss")}
                     </Button>
                   </div>
                 </Card>
@@ -215,12 +222,12 @@ export function SignalsPage() {
 
       {activeTab === "discoveries" && (
         discoveriesLoading ? <Spinner className="mt-8" /> :
-        discoveriesError ? <EmptyState className="mt-8" title="Couldn't load discoveries" description={discoveriesError} /> :
+        discoveriesError ? <EmptyState className="mt-8" title={t("common.error")} description={discoveriesError} /> :
         discoveriesCount === 0 ? (
           <EmptyState
             className="mt-8"
-            title="No discoveries yet"
-            description="Create an RSS or GitHub signal rule and run it to discover external content."
+            title={t("signals.noDiscoveries")}
+            description={t("signals.noDiscoveriesDesc")}
           />
         ) : (
           <div className="mt-6 space-y-3">
@@ -253,7 +260,7 @@ export function SignalsPage() {
                       <div className="flex items-center gap-2 mt-1">
                         <a href={discovery.source_uri} target="_blank" rel="noopener noreferrer"
                           className="text-xs text-primary-600 dark:text-primary-400 hover:underline">
-                          Source
+                          {t("signals.source")}
                         </a>
                         {discovery.published_at && (
                           <span className="text-xs text-gray-400 dark:text-gray-500">
@@ -264,7 +271,7 @@ export function SignalsPage() {
                     </div>
                     <Button variant="text" size="sm" onClick={() => handleCapture(discovery)}
                       loading={isCapturing}>
-                      Capture
+                      {t("captures.newCapture")}
                     </Button>
                   </div>
                 </Card>

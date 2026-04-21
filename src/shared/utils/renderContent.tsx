@@ -1,3 +1,5 @@
+import i18n from "../../i18n/config";
+
 interface Citation {
   memory_id: string;
   relevance: string | null;
@@ -31,7 +33,7 @@ export function renderContent(
         <span
           key={i}
           className="text-primary-600 dark:text-primary-400 font-medium cursor-help"
-          title={memory?.summary || "Cited memory"}
+          title={memory?.summary || i18n.t("common.citedMemory")}
         >
           {part}
         </span>

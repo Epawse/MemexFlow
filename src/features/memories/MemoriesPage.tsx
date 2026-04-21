@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../../lib/AuthProvider";
 import {
   useMemories,
@@ -19,14 +20,15 @@ import { Input } from "../../shared/components/Input";
 
 type CaptureTitleRow = { id: string; title: string | null };
 
-const RELATION_LABELS: Record<RelationType, { label: string; color: string }> = {
-  supports: { label: "Supports", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" },
-  contradicts: { label: "Contradicts", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" },
-  elaborates: { label: "Elaborates", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" },
-  related: { label: "Related", color: "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300" },
+const RELATION_COLORS: Record<RelationType, string> = {
+  supports: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+  contradicts: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+  elaborates: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+  related: "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300",
 };
 
 export function MemoriesPage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const userId = user?.id ?? "";
 
@@ -111,10 +113,10 @@ export function MemoriesPage() {
     return (
       <EmptyState
         className="mt-12"
-        title="Couldn't load memories"
-        description={queryError || "Please try again."}
+        title={t("common.error")}
+        description={queryError || t("common.retry")}
         action={
-          <Button onClick={() => window.location.reload()}>Reload</Button>
+          <Button onClick={() => window.location.reload()}>{t("common.retry")}</Button>
         }
       />
     );
@@ -123,7 +125,7 @@ export function MemoriesPage() {
   const handleCreateAssociation = async () => {
     if (!user || !linkModalMemoryId || !linkTargetId) return;
     if (linkModalMemoryId === linkTargetId) {
-      toast.error("Cannot link a memory to itself");
+      toast.error(t("memories.cannotLinkSelf"));
       return;
     }
     setLinking(true);
@@ -135,14 +137,14 @@ export function MemoriesPage() {
         relationType: linkRelationType,
         note: linkNote || undefined,
       });
-      toast.success("Association created");
+      toast.success(t("memories.created"));
       setLinkModalMemoryId(null);
       setLinkTargetId("");
       setLinkRelationType("supports");
       setLinkNote("");
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      toast.error("Failed to create association", { description: msg });
+      const msg = err instanceof Error ? err.message : t("common.error");
+      toast.error(t("memories.createFailed"), { description: msg });
     } finally {
       setLinking(false);
     }
@@ -151,11 +153,11 @@ export function MemoriesPage() {
   const handleDeleteAssociation = async (assocId: string) => {
     try {
       await deleteAssociation(assocId);
-      toast.success("Association removed");
+      toast.success(t("memories.removed"));
       setDetailAssociation(null);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      toast.error("Failed to delete association", { description: msg });
+      const msg = err instanceof Error ? err.message : t("common.error");
+      toast.error(t("memories.deleteFailed"), { description: msg });
     }
   };
 
@@ -166,7 +168,7 @@ export function MemoriesPage() {
     return (
       <div className="flex flex-wrap gap-1 mt-2">
         {Array.from(counts.entries()).map(([type, count]) => {
-          const info = RELATION_LABELS[type];
+          const colorCls = RELATION_COLORS[type];
           return (
             <button
               key={type}
@@ -179,10 +181,10 @@ export function MemoriesPage() {
                 );
                 setDetailAssociation({ memoryId, associations: assocs });
               }}
-              className={`text-xs px-2 py-0.5 rounded-full font-medium cursor-pointer hover:opacity-80 ${info.color}`}
-              aria-label={`View ${type} associations`}
+              className={`text-xs px-2 py-0.5 rounded-full font-medium cursor-pointer hover:opacity-80 ${colorCls}`}
+              aria-label={`${t("memories.associations")} ${type}`}
             >
-              {count} {info.label}
+              {count} {t(`memories.relations.${type}`)}
             </button>
           );
         })}
@@ -195,10 +197,10 @@ export function MemoriesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Memories
+            {t("memories.title")}
           </h2>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            Structured knowledge extracted from your captures
+            {t("memories.empty.description")}
           </p>
         </div>
       </div>
@@ -207,10 +209,10 @@ export function MemoriesPage() {
       <div className="mt-4">
         <Input
           type="text"
-          placeholder="Search memories..."
+          placeholder={t("memories.searchPlaceholder")}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          aria-label="Search memories"
+          aria-label={t("memories.searchPlaceholder")}
         />
       </div>
 
@@ -225,7 +227,7 @@ export function MemoriesPage() {
                 : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
             }`}
           >
-            All
+            {t("common.all")}
           </button>
           {projects.map((project) => (
             <button
@@ -246,11 +248,11 @@ export function MemoriesPage() {
       {displayedMemories.length === 0 ? (
         <EmptyState
           className="mt-8"
-          title={searchQuery.trim() ? "No matching memories" : "No memories yet"}
+          title={searchQuery.trim() ? t("memories.empty.noMatch") : t("memories.empty.title")}
           description={
             searchQuery.trim()
-              ? "Try a different search term."
-              : "Memories are extracted from your captures. Start by capturing some content."
+              ? t("memories.empty.tryDifferent")
+              : t("memories.empty.description")
           }
         />
       ) : (
@@ -286,7 +288,7 @@ export function MemoriesPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-gray-900 dark:text-white">
-                        {memoryRow.summary || "Memory"}
+                        {memoryRow.summary || t("memories.title")}
                       </p>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
                         {confidence > 0 && (
@@ -309,7 +311,7 @@ export function MemoriesPage() {
                         )}
                         {sourceTitle && (
                           <span className="text-xs text-gray-400 dark:text-gray-500">
-                            from {sourceTitle}
+                            {t("memories.fromSource", { title: sourceTitle })}
                           </span>
                         )}
                       </div>
@@ -345,7 +347,7 @@ export function MemoriesPage() {
                             setLinkModalMemoryId(memoryRow.id);
                           }}
                         >
-                          Link Memory
+                          {t("memories.linkMemory")}
                         </Button>
                       </div>
                     </div>
@@ -366,21 +368,21 @@ export function MemoriesPage() {
           setLinkRelationType("supports");
           setLinkNote("");
         }}
-        title="Link Memory"
+        title={t("memories.linkMemory")}
         size="md"
       >
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Target Memory
+              {t("memories.targetMemory")}
             </label>
             <select
               value={linkTargetId}
               onChange={(e) => setLinkTargetId(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-              aria-label="Select target memory"
+              aria-label={t("memories.targetMemory")}
             >
-              <option value="">Select a memory...</option>
+              <option value="">{t("memories.selectMemory")}</option>
               {memories
                 .filter((m) => m.id !== linkModalMemoryId)
                 .map((m) => (
@@ -393,17 +395,17 @@ export function MemoriesPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Relation Type
+              {t("memories.relationType")}
             </label>
             <select
               value={linkRelationType}
               onChange={(e) => setLinkRelationType(e.target.value as RelationType)}
               className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-              aria-label="Select relation type"
+              aria-label={t("memories.relationType")}
             >
-              {Object.entries(RELATION_LABELS).map(([key, info]) => (
+              {(["supports", "contradicts", "elaborates", "related"] as RelationType[]).map((key) => (
                 <option key={key} value={key}>
-                  {info.label}
+                  {t(`memories.relations.${key}`)}
                 </option>
               ))}
             </select>
@@ -411,13 +413,13 @@ export function MemoriesPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Note (optional)
+              {t("memories.noteOptional")}
             </label>
             <Input
               type="text"
               value={linkNote}
               onChange={(e) => setLinkNote(e.target.value)}
-              placeholder="Why are these related?"
+              placeholder={t("memories.noteOptional")}
             />
           </div>
 
@@ -429,14 +431,14 @@ export function MemoriesPage() {
                 setLinkTargetId("");
               }}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               onClick={handleCreateAssociation}
               loading={linking}
               disabled={!linkTargetId}
             >
-              Link
+              {t("memories.link")}
             </Button>
           </div>
         </div>
@@ -446,13 +448,13 @@ export function MemoriesPage() {
       <Modal
         open={detailAssociation !== null}
         onClose={() => setDetailAssociation(null)}
-        title="Memory Associations"
+        title={t("memories.associations")}
         size="lg"
       >
         {detailAssociation && (
           <div className="space-y-3 max-h-80 overflow-y-auto">
             {detailAssociation.associations.length === 0 ? (
-              <p className="text-sm text-gray-500 dark:text-gray-400">No associations found.</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{t("memories.noAssociations")}</p>
             ) : (
               detailAssociation.associations.map((assoc) => {
                 const otherId =
@@ -460,7 +462,7 @@ export function MemoriesPage() {
                     ? assoc.to_memory_id
                     : assoc.from_memory_id;
                 const otherMemory = memories.find((m) => m.id === otherId);
-                const info = RELATION_LABELS[assoc.relation_type as RelationType];
+                const colorCls = RELATION_COLORS[assoc.relation_type as RelationType];
 
                 return (
                   <div
@@ -469,11 +471,11 @@ export function MemoriesPage() {
                   >
                     <div className="min-w-0 flex-1">
                       <p className="text-sm text-gray-900 dark:text-white">
-                        {otherMemory?.summary || otherMemory?.content?.slice(0, 80) || "Unknown memory"}
+                        {otherMemory?.summary || otherMemory?.content?.slice(0, 80) || t("memories.unknown")}
                       </p>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${info.color}`}>
-                          {info.label}
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${colorCls}`}>
+                          {t(`memories.relations.${assoc.relation_type}`)}
                         </span>
                         {assoc.note && (
                           <span className="text-xs text-gray-500 dark:text-gray-400">{assoc.note}</span>
@@ -483,7 +485,7 @@ export function MemoriesPage() {
                     <button
                       onClick={() => handleDeleteAssociation(assoc.id)}
                       className="p-1 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors cursor-pointer"
-                      aria-label="Delete association"
+                      aria-label={t("common.delete")}
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />

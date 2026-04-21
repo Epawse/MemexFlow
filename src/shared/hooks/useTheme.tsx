@@ -5,6 +5,7 @@ import {
   useState,
   ReactNode,
 } from "react";
+import { useTranslation } from "react-i18next";
 
 type Theme = "light" | "dark" | "system";
 
@@ -75,6 +76,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
+  const { t } = useTranslation();
 
   const cycle = () => {
     const next: Record<Theme, Theme> = {
@@ -85,18 +87,14 @@ export function ThemeToggle() {
     setTheme(next[theme]);
   };
 
-  const label: Record<Theme, string> = {
-    light: "Light",
-    dark: "Dark",
-    system: "System",
-  };
+  const label = t(`settings.theme.${theme}`);
 
   return (
     <button
       onClick={cycle}
       className="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-      title={`Theme: ${label[theme]}. Click to switch.`}
-      aria-label={`Switch theme, current: ${label[theme]}`}
+      title={label}
+      aria-label={label}
     >
       {theme === "light" && (
         <svg

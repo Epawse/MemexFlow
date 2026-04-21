@@ -8,15 +8,16 @@ import {
   createRecallJob,
 } from "../../hooks/usePowerSyncQueries";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { Card } from "../../shared/components/Card";
 import { EmptyState } from "../../shared/components/EmptyState";
 import { Spinner } from "../../shared/components/Spinner";
 import { Button } from "../../shared/components/Button";
 import type { Recall } from "../../lib/models";
-import { REASON_LABELS } from "../../shared/constants";
 import { PriorityBadge } from "../../shared/components/PriorityBadge";
 
 export function RecallPage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const userId = user?.id ?? "";
   const {
@@ -36,10 +37,10 @@ export function RecallPage() {
     setActioningId(recall.id);
     try {
       await revisitRecall(recall.id);
-      toast.success("Marked as revisited");
+      toast.success(t("recall.markedRevisited"));
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      toast.error("Failed to mark as revisited", { description: msg });
+      const msg = err instanceof Error ? err.message : t("common.error");
+      toast.error(t("recall.markFailed"), { description: msg });
     } finally {
       setActioningId(null);
     }
@@ -49,10 +50,10 @@ export function RecallPage() {
     setActioningId(recall.id);
     try {
       await dismissRecall(recall.id);
-      toast.success("Dismissed");
+      toast.success(t("recall.dismissed"));
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      toast.error("Failed to dismiss", { description: msg });
+      const msg = err instanceof Error ? err.message : t("common.error");
+      toast.error(t("recall.dismissFailed"), { description: msg });
     } finally {
       setActioningId(null);
     }
@@ -63,12 +64,12 @@ export function RecallPage() {
     setTriggering(true);
     try {
       await createRecallJob(user.id);
-      toast.success("Recall job created", {
-        description: "We'll find memories worth revisiting. Check back soon.",
+      toast.success(t("recall.jobCreated"), {
+        description: t("recall.jobCreatedDesc"),
       });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      toast.error("Failed to create recall job", { description: msg });
+      const msg = err instanceof Error ? err.message : t("common.error");
+      toast.error(t("recall.jobFailed"), { description: msg });
     } finally {
       setTriggering(false);
     }
@@ -81,24 +82,24 @@ export function RecallPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Recall
+            {t("recall.title")}
           </h2>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            Memories worth revisiting
+            {t("recall.subtitle")}
           </p>
         </div>
         <Button onClick={handleFindMemories} loading={triggering}>
-          Find memories to revisit
+          {t("recall.findMemories")}
         </Button>
       </div>
 
       {error ? (
         <EmptyState
           className="mt-8"
-          title="Couldn't load recalls"
+          title={t("common.error")}
           description={error}
           action={
-            <Button onClick={() => window.location.reload()}>Reload</Button>
+            <Button onClick={() => window.location.reload()}>{t("common.retry")}</Button>
           }
         />
       ) : isLoading ? (
@@ -106,11 +107,11 @@ export function RecallPage() {
       ) : recallList.length === 0 ? (
         <EmptyState
           className="mt-12"
-          title="No recall suggestions"
-          description='Click "Find memories to revisit" to discover memories worth reviewing.'
+          title={t("recall.empty.title")}
+          description={t("recall.empty.description")}
           action={
             <Button onClick={handleFindMemories} loading={triggering}>
-              Find memories to revisit
+              {t("recall.findMemories")}
             </Button>
           }
         />
@@ -125,7 +126,7 @@ export function RecallPage() {
                     <div className="flex items-center gap-2 mb-1">
                       <PriorityBadge priority={recall.priority} />
                       <span className="text-xs text-gray-500 dark:text-gray-400">
-                        {REASON_LABELS[recall.reason] ?? recall.reason}
+                        {t(`recall.reasons.${recall.reason}`) ?? recall.reason}
                       </span>
                     </div>
                     {memory ? (
@@ -145,7 +146,7 @@ export function RecallPage() {
                       </p>
                     )}
                     <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                      Suggested {new Date(recall.scheduled_at).toLocaleDateString()}
+                      {t("common.suggested")} {new Date(recall.scheduled_at).toLocaleDateString()}
                     </p>
                   </div>
                   <div className="flex gap-1.5 flex-shrink-0">
@@ -155,7 +156,7 @@ export function RecallPage() {
                       onClick={() => handleRevisit(recall)}
                       loading={actioningId === recall.id}
                     >
-                      Revisit
+                      {t("recall.revisit")}
                     </Button>
                     <Button
                       variant="text"
@@ -163,7 +164,7 @@ export function RecallPage() {
                       onClick={() => handleDismiss(recall)}
                       loading={actioningId === recall.id}
                     >
-                      Dismiss
+                      {t("recall.dismiss")}
                     </Button>
                   </div>
                 </div>

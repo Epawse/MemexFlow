@@ -1,4 +1,5 @@
 import { ReactNode, useEffect, useRef } from "react";
+import i18n from "../../i18n/config";
 
 interface ModalProps {
   open: boolean;
@@ -107,7 +108,7 @@ export function Modal({
             <button
               onClick={onClose}
               className="p-1 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-              aria-label="Close"
+              aria-label={i18n.t("common.close")}
             >
               <svg
                 className="w-5 h-5"

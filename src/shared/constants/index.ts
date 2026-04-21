@@ -42,17 +42,9 @@ export const JOB_STATUS_BADGE: Record<string, string> = {
   failed: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
 };
 
-/** Human-readable labels for recall reasons */
-export const REASON_LABELS: Record<string, string> = {
-  time_based: "Not reviewed in 30+ days",
-  project_active: "Topic has recent activity",
-  association_dense: "Connected to many other memories",
-  signal_triggered: "Recently matched a signal rule",
-};
-
 /** Priority badge config */
-export const PRIORITY_BADGES: Record<string, { label: string; cls: string }> = {
-  high: { label: "High", cls: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" },
-  medium: { label: "Medium", cls: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" },
-  low: { label: "Low", cls: "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400" },
+export const PRIORITY_BADGES: Record<string, { cls: string }> = {
+  high: { cls: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" },
+  medium: { cls: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" },
+  low: { cls: "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400" },
 };

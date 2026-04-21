@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../../lib/AuthProvider";
 import { useAllBriefs } from "../../hooks/usePowerSyncQueries";
 import type { Brief } from "../../lib/models";
@@ -13,6 +14,7 @@ import { Tabs } from "../../shared/components/Tabs";
 type BriefFilter = "all" | "completed" | "processing" | "failed";
 
 export function BriefsPage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState<BriefFilter>("all");
@@ -38,7 +40,7 @@ export function BriefsPage() {
     return (
       <EmptyState
         className="mt-12"
-        title="Couldn't load briefs"
+        title={t("common.error")}
         description={error}
       />
     );
@@ -50,10 +52,10 @@ export function BriefsPage() {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Briefs
+              {t("briefs.title")}
             </h2>
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-              AI-generated research summaries and analysis
+              {t("briefs.description")}
             </p>
           </div>
         </div>
@@ -74,9 +76,9 @@ export function BriefsPage() {
               />
             </svg>
           }
-          title="No briefs yet"
-          description="Generate a brief from a topic's memories to synthesize your research."
-          action={<Button size="sm" onClick={() => navigate("/projects")}>View Topics</Button>}
+          title={t("briefs.empty.title")}
+          description={t("briefs.empty.description")}
+          action={<Button size="sm" onClick={() => navigate("/projects")}>{t("briefs.viewTopics")}</Button>}
         />
       </div>
     );
@@ -87,10 +89,10 @@ export function BriefsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Briefs
+            {t("briefs.title")}
           </h2>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            AI-generated research summaries and analysis
+            {t("briefs.description")}
           </p>
         </div>
       </div>
@@ -98,10 +100,10 @@ export function BriefsPage() {
       <Tabs
         className="mt-6"
         items={[
-          { key: "all", label: "All" },
-          { key: "completed", label: "Completed", badge: completedCount > 0 ? completedCount : undefined },
-          { key: "processing", label: "In Progress", badge: processingCount > 0 ? processingCount : undefined },
-          { key: "failed", label: "Failed", badge: failedCount > 0 ? failedCount : undefined },
+          { key: "all", label: t("common.all") },
+          { key: "completed", label: t("common.completed"), badge: completedCount > 0 ? completedCount : undefined },
+          { key: "processing", label: t("common.inProgress"), badge: processingCount > 0 ? processingCount : undefined },
+          { key: "failed", label: t("captures.status.failed"), badge: failedCount > 0 ? failedCount : undefined },
         ]}
         activeKey={activeFilter}
         onChange={(key) => setActiveFilter(key as BriefFilter)}
@@ -110,8 +112,8 @@ export function BriefsPage() {
       {filteredBriefs.length === 0 ? (
         <EmptyState
           className="mt-8"
-          title={`No ${activeFilter === "all" ? "" : activeFilter} briefs`}
-          description={activeFilter === "all" ? "Generate a brief from a topic to synthesize your research." : "No briefs match this filter."}
+          title={t("briefs.noFilterMatch")}
+          description={activeFilter === "all" ? t("briefs.empty.description") : t("briefs.noFilterMatchDesc")}
         />
       ) : (
         <div className="mt-6 space-y-4">

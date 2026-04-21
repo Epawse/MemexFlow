@@ -1,5 +1,6 @@
 import { getPowerSyncDb } from "./powersync";
 import { supabase } from "./supabase";
+import i18n from "../i18n/config";
 import type { Capture } from "./models";
 
 interface CreateCaptureParams {
@@ -16,7 +17,7 @@ interface CreateIngestionJobParams {
 
 export function normalizeUrl(raw: string): string {
   const trimmed = raw.trim();
-  if (!trimmed) throw new Error("URL is required");
+  if (!trimmed) throw new Error(i18n.t("captures.urlRequired"));
 
   const hasScheme = /^https?:\/\//i.test(trimmed);
 
@@ -24,7 +25,7 @@ export function normalizeUrl(raw: string): string {
   // *before* we prepend https://. Otherwise new URL() happily turns "123"
   // into https://0.0.0.123/ (numeric IPv4 coercion).
   if (!hasScheme && !/^[^\s/]+\.[a-z]{2,}(:\d+)?(\/.*)?$/i.test(trimmed)) {
-    throw new Error("That doesn't look like a valid URL");
+    throw new Error(i18n.t("captures.invalidUrl"));
   }
 
   const withScheme = hasScheme ? trimmed : `https://${trimmed}`;
@@ -32,10 +33,10 @@ export function normalizeUrl(raw: string): string {
   try {
     parsed = new URL(withScheme);
   } catch {
-    throw new Error("That doesn't look like a valid URL");
+    throw new Error(i18n.t("captures.invalidUrl"));
   }
   if (!parsed.hostname) {
-    throw new Error("URL is missing a valid domain");
+    throw new Error(i18n.t("captures.missingDomain"));
   }
   return parsed.toString();
 }
@@ -53,19 +54,14 @@ export async function createIngestionJob({
   const db = getPowerSyncDb();
   const jobId = crypto.randomUUID();
   const now = new Date().toISOString();
+  const language = i18n.language || "zh";
+
+  const input = { capture_id: captureId, url, user_id: userId, language };
 
   if (db) {
     await db.execute(
       "INSERT INTO jobs (id, user_id, type, status, input, output, error, created_at, updated_at) VALUES (?, ?, ?, ?, ?, '', '', ?, ?)",
-      [
-        jobId,
-        userId,
-        "ingestion",
-        "pending",
-        JSON.stringify({ capture_id: captureId, url, user_id: userId }),
-        now,
-        now,
-      ],
+      [jobId, userId, "ingestion", "pending", JSON.stringify(input), now, now],
     );
   } else {
     // jobs.input is jsonb — pass object directly so Postgres stores it
@@ -76,7 +72,7 @@ export async function createIngestionJob({
       user_id: userId,
       type: "ingestion",
       status: "pending",
-      input: { capture_id: captureId, url, user_id: userId },
+      input,
     });
     if (error) throw error;
   }
@@ -145,11 +141,13 @@ export async function confirmCapture(capture: Capture) {
   // If ingestion has completed (content exists), create extraction job
   if (capture.content && capture.content.trim().length > 0) {
     const jobId = crypto.randomUUID();
+    const language = i18n.language || "zh";
     const jobInput = JSON.stringify({
       content: capture.content.slice(0, 8000),
       capture_id: capture.id,
       user_id: capture.user_id,
       project_id: capture.project_id || "",
+      language,
     });
 
     if (db) {
@@ -167,6 +165,7 @@ export async function confirmCapture(capture: Capture) {
           capture_id: capture.id,
           user_id: capture.user_id,
           project_id: capture.project_id || "",
+          language,
         },
       });
       if (error) throw error;

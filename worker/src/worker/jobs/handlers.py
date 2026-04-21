@@ -83,6 +83,9 @@ async def handle_ingestion(input_data: dict[str, object]) -> dict[str, object]:
         except httpx.HTTPError as e:
             raise ValueError(f"Failed to fetch URL content: {e}") from e
 
+    language = input_data.get("language", "zh")
+    lang_instruction = "Respond in Chinese." if language == "zh" else "Respond in English."
+
     prompt = f"""Extract the main content from the following web page.
 Remove all navigation, ads, footers, and boilerplate.
 Return the title and clean article content.
@@ -96,7 +99,7 @@ Return JSON with keys: title, content, summary (1-2 sentence summary)"""
 
     response = await call_llm(
         prompt=prompt,
-        system="You are a content extraction assistant. Always respond with valid JSON.",
+        system=f"You are a content extraction assistant. {lang_instruction} Always respond with valid JSON.",
         max_tokens=4096,
     )
 
@@ -170,6 +173,9 @@ async def handle_extraction(input_data: dict[str, object]) -> dict[str, object]:
     if not content:
         raise ValueError("content is required")
 
+    language = input_data.get("language", "zh")
+    lang_instruction = "Respond in Chinese." if language == "zh" else "Respond in English."
+
     prompt = f"""Analyze the following content and extract key knowledge claims.
 For each claim, identify:
 1. The claim itself (factual statement or insight)
@@ -184,7 +190,7 @@ Return JSON array of objects with keys: content, memory_type, confidence"""
     response = await call_llm(
         prompt=prompt,
         system=(
-            "You are a knowledge extraction assistant. "
+            f"You are a knowledge extraction assistant. {lang_instruction} "
             "Extract verifiable claims. Always respond with valid JSON array."
         ),
         max_tokens=4096,
@@ -283,6 +289,9 @@ async def handle_briefing(input_data: dict[str, object]) -> dict[str, object]:
         memory_texts += f"[M{i}] [{memory_type}] Confidence: {confidence} | {summary}\n"
         memory_ids.append(m["id"])
 
+    language = input_data.get("language", "zh")
+    lang_instruction = "Respond in Chinese." if language == "zh" else "Respond in English."
+
     prompt = f"""Generate a research brief based on the following memories from a research project.
 
 Structure:
@@ -303,7 +312,7 @@ Return JSON with keys: title, content_markdown, cited_memory_ids
     response = await call_llm(
         prompt=prompt,
         system=(
-            "You are a research assistant. Write clear, evidence-based briefs "
+            f"You are a research assistant. {lang_instruction} Write clear, evidence-based briefs "
             "with proper citations. Always respond with valid JSON."
         ),
         max_tokens=4096,

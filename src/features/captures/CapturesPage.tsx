@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../../lib/AuthProvider";
 import { useCaptures, useCapturesByStatus, usePendingJobs, usePendingCaptureCount } from "../../hooks/usePowerSyncQueries";
 import { createCapture, createIngestionJob, confirmCapture, ignoreCapture, reactivateCapture } from "../../lib/captures";
@@ -16,6 +17,7 @@ import { Tabs } from "../../shared/components/Tabs";
 type CaptureTab = "all" | "pending" | "confirmed" | "ignored";
 
 export function CapturesPage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<CaptureTab>("pending");
@@ -73,12 +75,10 @@ export function CapturesPage() {
     try {
       await createCapture({ userId: user.id, url: captureUrl.trim() });
       setCaptureUrl("");
-      toast.success("Capture queued", {
-        description: "Review and confirm to extract memories.",
-      });
+      toast.success(t("toast.captureCreated"));
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      toast.error("Failed to capture URL", { description: msg });
+      const msg = err instanceof Error ? err.message : t("common.error");
+      toast.error(t("captures.status.failed"), { description: msg });
     } finally {
       setCapturing(false);
     }
@@ -94,13 +94,11 @@ export function CapturesPage() {
       existing &&
       (existing.status === "pending" || existing.status === "processing")
     ) {
-      toast.info("Already queued", {
-        description: "This capture is already being processed.",
-      });
+      toast.info(t("common.loading"));
       return;
     }
     if (!capture.url) {
-      toast.error("Cannot retry", { description: "Capture has no URL." });
+      toast.error(t("common.error"), { description: t("captures.noUrl") });
       return;
     }
 
@@ -111,12 +109,10 @@ export function CapturesPage() {
         captureId,
         url: capture.url,
       });
-      toast.success("Retry queued", {
-        description: "The capture will be re-processed.",
-      });
+      toast.success(t("captures.retry"));
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      toast.error("Retry failed", { description: msg });
+      const msg = err instanceof Error ? err.message : t("common.error");
+      toast.error(t("common.error"), { description: msg });
     } finally {
       setRetryingId(null);
     }
@@ -126,12 +122,10 @@ export function CapturesPage() {
     setConfirmingId(capture.id);
     try {
       await confirmCapture(capture);
-      toast.success("Capture confirmed", {
-        description: "Memories will be extracted shortly.",
-      });
+      toast.success(t("captures.confirm"));
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      toast.error("Failed to confirm", { description: msg });
+      const msg = err instanceof Error ? err.message : t("common.error");
+      toast.error(t("common.error"), { description: msg });
     } finally {
       setConfirmingId(null);
     }
@@ -140,20 +134,20 @@ export function CapturesPage() {
   const handleIgnore = async (captureId: string) => {
     try {
       await ignoreCapture(captureId);
-      toast.success("Capture ignored");
+      toast.success(t("captures.ignore"));
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      toast.error("Failed to ignore", { description: msg });
+      const msg = err instanceof Error ? err.message : t("common.error");
+      toast.error(t("common.error"), { description: msg });
     }
   };
 
   const handleReactivate = async (captureId: string) => {
     try {
       await reactivateCapture(captureId);
-      toast.success("Capture reactivated");
+      toast.success(t("captures.retry"));
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      toast.error("Failed to reactivate", { description: msg });
+      const msg = err instanceof Error ? err.message : t("common.error");
+      toast.error(t("common.error"), { description: msg });
     }
   };
 
@@ -163,7 +157,7 @@ export function CapturesPage() {
       <span
         className={`text-xs px-2 py-0.5 rounded-full font-medium ${CAPTURE_STATUS_BADGE[s] || CAPTURE_STATUS_BADGE.pending}`}
       >
-        {s.charAt(0).toUpperCase() + s.slice(1)}
+        {t(`captures.status.${s}`) || s}
       </span>
     );
   };
@@ -175,7 +169,7 @@ export function CapturesPage() {
       <span
         className={`text-xs px-2 py-0.5 rounded-full font-medium ${JOB_STATUS_BADGE[s] || JOB_STATUS_BADGE.pending}`}
       >
-        {s === "processing" ? "Extracting..." : s}
+        {s === "processing" ? t("captures.extracting") : s}
       </span>
     );
   };
@@ -188,10 +182,10 @@ export function CapturesPage() {
     return (
       <EmptyState
         className="mt-12"
-        title="Couldn't load captures"
-        description={error || "Please try again."}
+        title={t("common.error")}
+        description={error || t("common.retry")}
         action={
-          <Button onClick={() => window.location.reload()}>Reload</Button>
+          <Button onClick={() => window.location.reload()}>{t("common.retry")}</Button>
         }
       />
     );
@@ -202,10 +196,10 @@ export function CapturesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Captures
+            {t("captures.title")}
           </h2>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            Saved URLs, notes, and highlights from your research
+            {t("captures.empty.description")}
           </p>
         </div>
       </div>
@@ -213,8 +207,8 @@ export function CapturesPage() {
       <div className="mt-6 flex gap-2">
         <input
           type="url"
-          placeholder="Paste a URL to capture..."
-          aria-label="Capture URL"
+          placeholder={t("captures.placeholder")}
+          aria-label={t("captures.placeholder")}
           value={captureUrl}
           onChange={(e) => setCaptureUrl(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleCapture()}
@@ -238,7 +232,7 @@ export function CapturesPage() {
               d="M12 4.5v15m7.5-7.5h-15"
             />
           </svg>
-          Capture
+          {t("captures.newCapture")}
         </Button>
       </div>
 
@@ -246,7 +240,7 @@ export function CapturesPage() {
       {captures.length > 0 && (
         <div className="mt-4">
           <Input
-            placeholder="Search captures..."
+            placeholder={t("common.search")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -257,26 +251,22 @@ export function CapturesPage() {
       <Tabs
         className="mt-6"
         items={[
-          { key: "pending", label: "Pending", badge: pendingCount > 0 ? pendingCount : undefined },
-          { key: "all", label: "All" },
-          { key: "confirmed", label: "Confirmed" },
-          { key: "ignored", label: "Ignored" },
+          { key: "pending", label: t("captures.status.pending"), badge: pendingCount > 0 ? pendingCount : undefined },
+          { key: "all", label: t("common.all") },
+          { key: "confirmed", label: t("captures.status.confirmed") },
+          { key: "ignored", label: t("captures.status.ignored") },
         ]}
         activeKey={activeTab}
         onChange={(key) => setActiveTab(key as CaptureTab)}
       />
 
       {filteredCaptures.length === 0 && search.trim() ? (
-        <EmptyState className="mt-8" title="No matches" description="No captures match your search." />
+        <EmptyState className="mt-8" title={t("common.none")} description={t("common.none")} />
       ) : captures.length === 0 ? (
         <EmptyState
           className="mt-8"
-          title={activeTab === "pending" ? "No pending captures" : "No captures yet"}
-          description={
-            activeTab === "pending"
-              ? "Captures you save will appear here for review."
-              : "Paste a URL above to start capturing content."
-          }
+          title={t("captures.empty.title")}
+          description={t("captures.empty.description")}
         />
       ) : (
         <div className="mt-4 space-y-2">
@@ -334,7 +324,7 @@ export function CapturesPage() {
                           disabled={retryingId === capture.id}
                           className="text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline disabled:opacity-50 cursor-pointer"
                         >
-                          {retryingId === capture.id ? "Retrying..." : "Retry"}
+                          {retryingId === capture.id ? t("common.loading") : t("captures.retry")}
                         </button>
                       </div>
                     )}
@@ -348,9 +338,9 @@ export function CapturesPage() {
                             }}
                             disabled={confirmingId === capture.id}
                             className="text-xs font-medium text-green-600 dark:text-green-400 hover:underline disabled:opacity-50 cursor-pointer"
-                            aria-label={`Confirm capture: ${capture.title}`}
+                            aria-label={`${t("captures.confirm")}: ${capture.title}`}
                           >
-                            {confirmingId === capture.id ? "Confirming..." : "Confirm"}
+                            {confirmingId === capture.id ? t("common.loading") : t("captures.confirm")}
                           </button>
                         )}
                         {showIgnore && (
@@ -360,9 +350,9 @@ export function CapturesPage() {
                               handleIgnore(capture.id);
                             }}
                             className="text-xs font-medium text-gray-500 dark:text-gray-400 hover:underline cursor-pointer"
-                            aria-label={`Ignore capture: ${capture.title}`}
+                            aria-label={`${t("captures.ignore")}: ${capture.title}`}
                           >
-                            Ignore
+                            {t("captures.ignore")}
                           </button>
                         )}
                         {showReactivate && (
@@ -372,9 +362,9 @@ export function CapturesPage() {
                               handleReactivate(capture.id);
                             }}
                             className="text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline cursor-pointer"
-                            aria-label={`Reactivate capture: ${capture.title}`}
+                            aria-label={`${t("captures.retry")}: ${capture.title}`}
                           >
-                            Reactivate
+                            {t("captures.retry")}
                           </button>
                         )}
                       </div>

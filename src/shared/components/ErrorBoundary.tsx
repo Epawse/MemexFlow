@@ -1,4 +1,5 @@
 import { Component, ErrorInfo, ReactNode } from "react";
+import i18n from "../../i18n/config";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -50,16 +51,16 @@ export class ErrorBoundary extends Component<
               />
             </svg>
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">
-              Something went wrong
+              {i18n.t("common.error")}
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-              {this.state.error?.message || "An unexpected error occurred"}
+              {this.state.error?.message || i18n.t("common.unexpectedError")}
             </p>
             <button
               onClick={() => this.setState({ hasError: false, error: null })}
               className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors cursor-pointer"
             >
-              Try Again
+              {i18n.t("common.tryAgain")}
             </button>
           </div>
         </div>

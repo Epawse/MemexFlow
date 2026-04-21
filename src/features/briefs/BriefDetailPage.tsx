@@ -1,4 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@powersync/react";
 import {
   useBrief,
@@ -13,6 +14,7 @@ import { toast } from "sonner";
 import { renderContent } from "../../shared/utils/renderContent";
 
 export function BriefDetailPage() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
@@ -28,9 +30,9 @@ export function BriefDetailPage() {
     return (
       <EmptyState
         className="mt-12"
-        title="Brief not found"
-        description={error || "This brief does not exist or has been deleted."}
-        action={<Button onClick={() => navigate("/briefs")}>Back to Briefs</Button>}
+        title={t("briefs.notFound")}
+        description={error || t("briefs.notFoundDesc")}
+        action={<Button onClick={() => navigate("/briefs")}>{t("briefs.backToBriefs")}</Button>}
       />
     );
   }
@@ -45,6 +47,7 @@ function BriefDetail({
   brief: { id: string; title: string; content: string; status: string; created_at: string; project_id: string | null };
   onBack: () => void;
 }) {
+  const { t } = useTranslation();
   const { data: citations } = useBriefCitations(brief.id);
 
   const citedMemoryIds = (citations ?? []).map((c) => c.memory_id);
@@ -61,27 +64,27 @@ function BriefDetail({
   const handleDelete = async () => {
     try {
       await deleteBrief(brief.id);
-      toast.success("Brief deleted");
+      toast.success(t("briefs.deleted"));
       onBack();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      toast.error("Failed to delete brief", { description: msg });
+      const msg = err instanceof Error ? err.message : t("common.error");
+      toast.error(t("briefs.deleteFailed"), { description: msg });
     }
   };
 
   if (brief.status === "pending" || brief.status === "processing") {
     return (
       <div>
-        <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 mb-6 cursor-pointer" aria-label="Back to briefs">
+        <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 mb-6 cursor-pointer" aria-label={t("briefs.backToBriefs")}>
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
           </svg>
-          Back to Briefs
+          {t("briefs.backToBriefs")}
         </button>
         <div className="flex flex-col items-center justify-center py-12">
           <Spinner size="lg" className="mb-4" />
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            {brief.status === "pending" ? "Waiting to generate..." : "Generating brief..."}
+            {brief.status === "pending" ? t("briefs.waiting") : t("briefs.generating")}
           </p>
         </div>
       </div>
@@ -91,13 +94,13 @@ function BriefDetail({
   if (brief.status === "failed") {
     return (
       <div>
-        <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 mb-6 cursor-pointer" aria-label="Back to briefs">
+        <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 mb-6 cursor-pointer" aria-label={t("briefs.backToBriefs")}>
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
           </svg>
-          Back to Briefs
+          {t("briefs.backToBriefs")}
         </button>
-        <EmptyState title="Brief generation failed" description="Something went wrong. Try generating a new brief." />
+        <EmptyState title={t("briefs.failedTitle")} description={t("briefs.failedDesc")} />
       </div>
     );
   }
@@ -105,13 +108,13 @@ function BriefDetail({
   return (
     <div className="max-w-3xl mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 cursor-pointer" aria-label="Back to briefs">
+        <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 cursor-pointer" aria-label={t("briefs.backToBriefs")}>
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
           </svg>
-          Back to Briefs
+          {t("briefs.backToBriefs")}
         </button>
-        <Button variant="danger" size="sm" onClick={handleDelete}>Delete</Button>
+        <Button variant="danger" size="sm" onClick={handleDelete}>{t("common.delete")}</Button>
       </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
@@ -124,7 +127,7 @@ function BriefDetail({
       {(citations ?? []).length > 0 && (
         <div className="mt-6">
           <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">
-            Cited Memories ({citations.length})
+            {t("briefs.citedMemories")} ({citations.length})
           </h3>
           <div className="space-y-2">
             {(citations ?? []).map((citation: { memory_id: string; relevance: string | null }, idx: number) => {
@@ -134,7 +137,7 @@ function BriefDetail({
                   <div className="flex items-start gap-2">
                     <span className="text-xs font-medium text-primary-600 dark:text-primary-400 flex-shrink-0">[M{idx + 1}]</span>
                     <p className="text-sm text-gray-700 dark:text-gray-300">
-                      {memory?.summary || memory?.content?.slice(0, 150) || "Memory not found"}
+                      {memory?.summary || memory?.content?.slice(0, 150) || t("briefs.memoryNotFound")}
                     </p>
                   </div>
                 </Card>
@@ -145,7 +148,7 @@ function BriefDetail({
       )}
 
       <p className="mt-4 text-xs text-gray-400 dark:text-gray-500">
-        Generated {new Date(brief.created_at).toLocaleDateString()}
+        {t("briefs.generatedAt")} {new Date(brief.created_at).toLocaleDateString()}
       </p>
     </div>
   );

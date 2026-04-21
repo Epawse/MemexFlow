@@ -2,6 +2,7 @@ import { useQuery } from "@powersync/react";
 import { useState, useEffect, useCallback } from "react";
 import { getPowerSyncDb } from "../lib/powersync";
 import { supabase } from "../lib/supabase";
+import i18n from "../i18n/config";
 import type { Project, Capture, Memory, Job, MemoryAssociation, RelationType, Brief, BriefMemory, SignalRule, SignalMatch, SignalDiscovery, CaptureStatus, ChannelType, Recall } from "../lib/models";
 
 // ---------------------------------------------------------------------------
@@ -267,7 +268,7 @@ export function useMemorySearch(query: string, userId: string) {
       })
       .catch((err) => {
         if (!cancelled) {
-          setFallbackError(err.message || "Search failed");
+          setFallbackError(err.message || i18n.t("common.searchFailed"));
           setFallbackLoading(false);
         }
       });
@@ -680,21 +681,22 @@ export async function createBriefJob(projectId: string, userId: string) {
   const now = new Date().toISOString();
   const db = getPowerSyncDb();
 
+  const language = i18n.language || "zh";
   if (db) {
     await db.execute(
       "INSERT INTO briefs (id, user_id, project_id, title, content, type, status, metadata, created_at, updated_at) VALUES (?, ?, ?, ?, '', 'project', 'pending', '{}', ?, ?)",
-      [briefId, userId, projectId, "Generating...", now, now],
+      [briefId, userId, projectId, i18n.t("briefs.generatingTitle"), now, now],
     );
     await db.execute(
       "INSERT INTO jobs (id, user_id, type, status, input, output, error, created_at, updated_at) VALUES (?, ?, 'briefing', 'pending', ?, '', '', ?, ?)",
-      [jobId, userId, JSON.stringify({ project_id: projectId, user_id: userId, brief_id: briefId }), now, now],
+      [jobId, userId, JSON.stringify({ project_id: projectId, user_id: userId, brief_id: briefId, language }), now, now],
     );
   } else {
     const { error: briefError } = await (supabase.from("briefs") as any).insert({
       id: briefId,
       user_id: userId,
       project_id: projectId,
-      title: "Generating...",
+      title: i18n.t("briefs.generatingTitle"),
       content: "",
       type: "project",
       status: "pending",
@@ -858,11 +860,12 @@ export async function toggleRuleActive(ruleId: string, isActive: boolean) {
 export async function createSignalJob(ruleId: string, userId: string) {
   const jobId = crypto.randomUUID();
   const now = new Date().toISOString();
+  const language = i18n.language || "zh";
   const db = getPowerSyncDb();
   if (db) {
     await db.execute(
       "INSERT INTO jobs (id, user_id, type, status, input, output, error, created_at, updated_at) VALUES (?, ?, 'signal', 'pending', ?, '', '', ?, ?)",
-      [jobId, userId, JSON.stringify({ signal_rule_id: ruleId, user_id: userId }), now, now],
+      [jobId, userId, JSON.stringify({ signal_rule_id: ruleId, user_id: userId, language }), now, now],
     );
   } else {
     const { error } = await (supabase.from("jobs") as any).insert({
@@ -870,7 +873,7 @@ export async function createSignalJob(ruleId: string, userId: string) {
       user_id: userId,
       type: "signal",
       status: "pending",
-      input: { signal_rule_id: ruleId, user_id: userId },
+      input: { signal_rule_id: ruleId, user_id: userId, language },
     });
     if (error) throw error;
   }
@@ -978,11 +981,12 @@ export async function captureDiscovery(params: {
 export async function createSignalScanJob(ruleId: string, userId: string) {
   const jobId = crypto.randomUUID();
   const now = new Date().toISOString();
+  const language = i18n.language || "zh";
   const db = getPowerSyncDb();
   if (db) {
     await db.execute(
       "INSERT INTO jobs (id, user_id, type, status, input, output, error, created_at, updated_at) VALUES (?, ?, 'signal_scan', 'pending', ?, '', '', ?, ?)",
-      [jobId, userId, JSON.stringify({ signal_rule_id: ruleId, user_id: userId }), now, now],
+      [jobId, userId, JSON.stringify({ signal_rule_id: ruleId, user_id: userId, language }), now, now],
     );
   } else {
     const { error } = await (supabase.from("jobs") as any).insert({
@@ -990,7 +994,7 @@ export async function createSignalScanJob(ruleId: string, userId: string) {
       user_id: userId,
       type: "signal_scan",
       status: "pending",
-      input: { signal_rule_id: ruleId, user_id: userId },
+      input: { signal_rule_id: ruleId, user_id: userId, language },
     });
     if (error) throw error;
   }
@@ -1092,7 +1096,8 @@ export async function dismissRecall(recallId: string) {
 export async function createRecallJob(userId: string, projectId?: string) {
   const jobId = crypto.randomUUID();
   const now = new Date().toISOString();
-  const input: Record<string, string> = { user_id: userId };
+  const language = i18n.language || "zh";
+  const input: Record<string, string> = { user_id: userId, language };
   if (projectId) input.project_id = projectId;
   const db = getPowerSyncDb();
   if (db) {
@@ -1154,7 +1159,7 @@ function useDataQuery<T>(
       })
       .catch((err) => {
         if (!cancelled) {
-          setFallbackError(err.message || "Failed to fetch data");
+          setFallbackError(err.message || i18n.t("common.fetchFailed"));
           setFallbackLoading(false);
         }
       });

@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../../lib/AuthProvider";
 import {
   useCapture,
@@ -53,6 +54,7 @@ function parseMetadata(metadata: string | null | number | boolean | object): Rec
 }
 
 export function CaptureDetailPage() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -79,12 +81,12 @@ export function CaptureDetailPage() {
     setConfirming(true);
     try {
       await confirmCapture(capture);
-      toast.success("Capture confirmed", {
-        description: "Memories will be extracted shortly.",
+      toast.success(t("captures.confirmed"), {
+        description: t("captures.confirmedDesc"),
       });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      toast.error("Failed to confirm", { description: msg });
+      const msg = err instanceof Error ? err.message : t("common.error");
+      toast.error(t("captures.confirmFailed"), { description: msg });
     } finally {
       setConfirming(false);
     }
@@ -94,11 +96,11 @@ export function CaptureDetailPage() {
     if (!capture) return;
     try {
       await ignoreCapture(capture.id);
-      toast.success("Capture ignored");
+      toast.success(t("captures.ignored"));
       navigate("/captures");
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      toast.error("Failed to ignore", { description: msg });
+      const msg = err instanceof Error ? err.message : t("common.error");
+      toast.error(t("captures.ignoreFailed"), { description: msg });
     }
   };
 
@@ -111,12 +113,12 @@ export function CaptureDetailPage() {
         captureId: capture.id,
         url: capture.url,
       });
-      toast.success("Retry queued", {
-        description: "The capture will be re-processed.",
+      toast.success(t("captures.retryQueued"), {
+        description: t("captures.retryQueuedDesc"),
       });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      toast.error("Retry failed", { description: msg });
+      const msg = err instanceof Error ? err.message : t("common.error");
+      toast.error(t("captures.retryFailed"), { description: msg });
     } finally {
       setRetrying(false);
     }
@@ -127,9 +129,9 @@ export function CaptureDetailPage() {
     return (
       <EmptyState
         className="mt-12"
-        title="Capture not found"
-        description={error || "This capture does not exist or has been deleted."}
-        action={<Button onClick={() => navigate("/captures")}>Back to Captures</Button>}
+        title={t("captures.notFound")}
+        description={error || t("captures.notFoundDesc")}
+        action={<Button onClick={() => navigate("/captures")}>{t("captures.backToCaptures")}</Button>}
       />
     );
   }
@@ -145,12 +147,12 @@ export function CaptureDetailPage() {
       <button
         onClick={() => navigate("/captures")}
         className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 mb-6 cursor-pointer"
-        aria-label="Back to captures"
+        aria-label={t("captures.backToCaptures")}
       >
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
         </svg>
-        Back to Captures
+        {t("captures.backToCaptures")}
       </button>
 
       {/* Header */}
@@ -159,7 +161,7 @@ export function CaptureDetailPage() {
           {capture.title}
         </h1>
         <span className={`text-xs px-2.5 py-1 rounded-full font-medium flex-shrink-0 ${CAPTURE_STATUS_BADGE[status] || CAPTURE_STATUS_BADGE.pending}`}>
-          {status.charAt(0).toUpperCase() + status.slice(1)}
+          {t(`captures.status.${status}`) || status}
         </span>
       </div>
 
@@ -170,7 +172,7 @@ export function CaptureDetailPage() {
         {job?.status === "processing" && (
           <>
             <span>·</span>
-            <span className="text-primary-600 dark:text-primary-400">Extracting...</span>
+            <span className="text-primary-600 dark:text-primary-400">{t("captures.extracting")}</span>
           </>
         )}
         {showRetry && (
@@ -180,9 +182,9 @@ export function CaptureDetailPage() {
               onClick={handleRetry}
               disabled={retrying}
               className="text-red-600 dark:text-red-400 hover:underline cursor-pointer disabled:opacity-50"
-              aria-label="Retry ingestion"
+              aria-label={t("captures.retry")}
             >
-              {retrying ? "Retrying..." : "Retry"}
+              {retrying ? t("common.loading") : t("captures.retry")}
             </button>
           </>
         )}
@@ -191,7 +193,7 @@ export function CaptureDetailPage() {
       {/* AI Summary */}
       {meta.summary && (
         <div className="mb-6 p-4 rounded-lg bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800">
-          <p className="text-xs font-medium text-primary-700 dark:text-primary-300 mb-1">AI Summary</p>
+          <p className="text-xs font-medium text-primary-700 dark:text-primary-300 mb-1">{t("captures.aiSummary")}</p>
           <p className="text-sm text-primary-900 dark:text-primary-100">{meta.summary}</p>
         </div>
       )}
@@ -199,7 +201,7 @@ export function CaptureDetailPage() {
       {/* Source URL */}
       {capture.url && (
         <div className="mb-6">
-          <h2 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Source</h2>
+          <h2 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">{t("captures.source")}</h2>
           <a
             href={capture.url}
             target="_blank"
@@ -214,7 +216,7 @@ export function CaptureDetailPage() {
       {/* Content */}
       {capture.content ? (
         <div className="mb-6">
-          <h2 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Content</h2>
+          <h2 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">{t("captures.content")}</h2>
           <div className="prose prose-sm dark:prose-invert max-w-none bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
             {renderContent(capture.content, null, new Map())}
           </div>
@@ -222,7 +224,7 @@ export function CaptureDetailPage() {
       ) : (
         <div className="mb-6 p-8 text-center bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            {status === "pending" ? "Content will appear here after processing." : "No content available."}
+            {status === "pending" ? t("captures.contentPending") : t("captures.contentUnavailable")}
           </p>
         </div>
       )}
@@ -231,7 +233,7 @@ export function CaptureDetailPage() {
       {captureMemories.length > 0 && (
         <div className="mb-6">
           <h2 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
-            Extracted Memories ({captureMemories.length})
+            {t("captures.extractedMemories")} ({captureMemories.length})
           </h2>
           <div className="space-y-2">
             {captureMemories.map((memory) => {
@@ -247,7 +249,7 @@ export function CaptureDetailPage() {
                     )}
                     {memMeta.confidence && (
                       <span className="text-xs text-gray-400 dark:text-gray-500">
-                        Confidence: {Math.round(Number(memMeta.confidence) * 100)}%
+                        {t("captures.confidence")}: {Math.round(Number(memMeta.confidence) * 100)}%
                       </span>
                     )}
                   </div>
@@ -263,12 +265,12 @@ export function CaptureDetailPage() {
         <div className="flex items-center gap-3 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
           {showConfirm && (
             <Button onClick={handleConfirm} loading={confirming}>
-              Confirm & Extract Memories
+              {t("captures.confirmAndExtract")}
             </Button>
           )}
           {showIgnore && (
             <Button variant="secondary" onClick={handleIgnore}>
-              Ignore
+              {t("captures.ignore")}
             </Button>
           )}
         </div>

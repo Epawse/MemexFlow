@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../../lib/AuthProvider";
 import {
   useDashboardStats,
@@ -18,10 +19,11 @@ import { Card } from "../../shared/components/Card";
 import { EmptyState } from "../../shared/components/EmptyState";
 import { Spinner } from "../../shared/components/Spinner";
 import { Button } from "../../shared/components/Button";
-import { TYPE_ICONS, REASON_LABELS } from "../../shared/constants";
+import { TYPE_ICONS } from "../../shared/constants";
 import { PriorityBadge } from "../../shared/components/PriorityBadge";
 
 export function DashboardPage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const stats = useDashboardStats(user?.id ?? "");
@@ -48,14 +50,10 @@ export function DashboardPage() {
     try {
       await createCapture({ userId: user.id, url: captureUrl.trim() });
       setCaptureUrl("");
-      toast.success("Capture queued", {
-        description: "Review and confirm to extract memories.",
-      });
+      toast.success(t("toast.captureCreated"));
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      toast.error("Failed to capture URL", {
-        description: msg,
-      });
+      const msg = err instanceof Error ? err.message : t("common.error");
+      toast.error(t("captures.status.failed"), { description: msg });
     } finally {
       setCapturing(false);
     }
@@ -69,28 +67,28 @@ export function DashboardPage() {
 
   const statCards = [
     {
-      label: "Captures",
+      label: t("dashboard.stats.captures"),
       value: stats.captures,
       color: "text-primary-600 dark:text-primary-400",
       bg: "bg-primary-50 dark:bg-primary-900/20",
       href: "/captures",
     },
     {
-      label: "Memories",
+      label: t("dashboard.stats.memories"),
       value: stats.memories,
       color: "text-purple-600 dark:text-purple-400",
       bg: "bg-purple-50 dark:bg-purple-900/20",
       href: "/memories",
     },
     {
-      label: "Topics",
+      label: t("dashboard.stats.topics"),
       value: stats.projects,
       color: "text-green-600 dark:text-green-400",
       bg: "bg-green-50 dark:bg-green-900/20",
       href: "/projects",
     },
     {
-      label: "Briefs",
+      label: t("dashboard.stats.briefs"),
       value: stats.briefs,
       color: "text-amber-600 dark:text-amber-400",
       bg: "bg-amber-50 dark:bg-amber-900/20",
@@ -104,17 +102,17 @@ export function DashboardPage() {
   return (
     <div>
       <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-        Dashboard
+        {t("dashboard.title")}
       </h2>
       <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-        Overview of your research activity
+        MemexFlow
       </p>
 
       <div className="mt-6 flex gap-2">
         <input
           type="url"
-          placeholder="Quick capture — paste a URL..."
-          aria-label="Capture URL"
+          placeholder={t("captures.placeholder")}
+          aria-label={t("captures.placeholder")}
           value={captureUrl}
           onChange={(e) => setCaptureUrl(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleQuickCapture()}
@@ -125,17 +123,17 @@ export function DashboardPage() {
           loading={capturing}
           disabled={!captureUrl.trim()}
         >
-          Capture
+          {t("captures.newCapture")}
         </Button>
       </div>
 
       {queryError ? (
         <EmptyState
           className="mt-12"
-          title="Couldn't load dashboard"
-          description={queryError || "Please try again."}
+          title={t("common.error")}
+          description={queryError || t("common.retry")}
           action={
-            <Button onClick={() => window.location.reload()}>Reload</Button>
+            <Button onClick={() => window.location.reload()}>{t("common.retry")}</Button>
           }
         />
       ) : loading ? (
@@ -159,10 +157,9 @@ export function DashboardPage() {
             ))}
           </div>
 
-          {/* Signal badge */}
           {signalCount.count > 0 && (
             <div className="mt-6">
-              <button onClick={() => navigate("/signals")} aria-label="View signal matches"
+              <button onClick={() => navigate("/signals")} aria-label={t("signals.title")}
                 className="flex items-center gap-3 px-4 py-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors w-full text-left">
                 <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
                   <svg className="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -171,18 +168,16 @@ export function DashboardPage() {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
-                    {signalCount.count} unread signal match{signalCount.count !== 1 ? "es" : ""}
+                    {signalCount.count} {t("signals.title")}
                   </p>
-                  <p className="text-xs text-amber-600 dark:text-amber-400">Click to view</p>
                 </div>
               </button>
             </div>
           )}
 
-          {/* Pending captures banner */}
           {pendingCaptureCount.count > 0 && (
             <div className={signalCount.count > 0 ? "mt-4" : "mt-6"}>
-              <button onClick={() => navigate("/captures")} aria-label="Review pending captures"
+              <button onClick={() => navigate("/captures")} aria-label={t("captures.title")}
                 className="flex items-center gap-3 px-4 py-3 bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-xl cursor-pointer hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors w-full text-left">
                 <div className="w-8 h-8 rounded-lg bg-primary-100 dark:bg-primary-900/40 flex items-center justify-center">
                   <svg className="w-4 h-4 text-primary-600 dark:text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -191,23 +186,21 @@ export function DashboardPage() {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-primary-800 dark:text-primary-300">
-                    {pendingCaptureCount.count} capture{pendingCaptureCount.count !== 1 ? "s" : ""} awaiting review
+                    {pendingCaptureCount.count} {t("captures.status.pending")}
                   </p>
-                  <p className="text-xs text-primary-600 dark:text-primary-400">Confirm to extract memories</p>
                 </div>
               </button>
             </div>
           )}
 
-          {/* Recall suggestions */}
           {recallCount.count > 0 && (
             <div className={(signalCount.count > 0 || pendingCaptureCount.count > 0) ? "mt-4" : "mt-6"}>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Memories to revisit
+                  {t("dashboard.memoriesToRevisit")}
                 </h3>
                 <Button variant="text" size="sm" onClick={() => navigate("/recall")}>
-                  View all
+                  {t("common.more")}
                 </Button>
               </div>
               <div className="space-y-2">
@@ -218,7 +211,7 @@ export function DashboardPage() {
                         <div className="flex items-center gap-2">
                           <PriorityBadge priority={recall.priority} />
                           <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {REASON_LABELS[recall.reason] ?? recall.reason}
+                            {t(`recall.reasons.${recall.reason}`) ?? recall.reason}
                           </span>
                         </div>
                         {recall.reason_detail && (
@@ -229,10 +222,10 @@ export function DashboardPage() {
                       </div>
                       <div className="flex gap-1.5 flex-shrink-0">
                         <Button variant="primary" size="sm" onClick={async () => { await revisitRecall(recall.id); }}>
-                          Revisit
+                          {t("recall.revisit")}
                         </Button>
                         <Button variant="text" size="sm" onClick={async () => { await dismissRecall(recall.id); }}>
-                          Dismiss
+                          {t("recall.dismiss")}
                         </Button>
                       </div>
                     </div>
@@ -246,44 +239,26 @@ export function DashboardPage() {
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Recent Captures
+                  {t("dashboard.recentCaptures")}
                 </h3>
-                <Button
-                  variant="text"
-                  size="sm"
-                  onClick={() => navigate("/captures")}
-                >
-                  View all
+                <Button variant="text" size="sm" onClick={() => navigate("/captures")}>
+                  {t("common.more")}
                 </Button>
               </div>
               {recentCaptures.length === 0 ? (
                 <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-8 text-center">
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    No captures yet. Paste a URL above to start.
+                    {t("dashboard.empty.captures")}
                   </p>
                 </div>
               ) : (
                 <div className="space-y-2">
                   {recentCaptures.map((capture) => (
-                    <Card
-                      key={capture.id}
-                      hover
-                      onClick={() => navigate(`/captures/${capture.id}`)}
-                    >
+                    <Card key={capture.id} hover onClick={() => navigate(`/captures/${capture.id}`)}>
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-primary-50 dark:bg-primary-900/30 flex items-center justify-center flex-shrink-0">
-                          <svg
-                            className="w-4 h-4 text-primary-600 dark:text-primary-400"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={1.5}
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d={TYPE_ICONS[capture.type] || TYPE_ICONS.url}
-                            />
+                          <svg className="w-4 h-4 text-primary-600 dark:text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d={TYPE_ICONS[capture.type] || TYPE_ICONS.url} />
                           </svg>
                         </div>
                         <div className="min-w-0 flex-1">
@@ -304,40 +279,30 @@ export function DashboardPage() {
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Active Topics
+                  {t("dashboard.activeTopics")}
                 </h3>
-                <Button
-                  variant="text"
-                  size="sm"
-                  onClick={() => navigate("/projects")}
-                >
-                  View all
+                <Button variant="text" size="sm" onClick={() => navigate("/projects")}>
+                  {t("common.more")}
                 </Button>
               </div>
               {activeProjects.length === 0 ? (
                 <EmptyState
-                  title="No topics yet"
-                  description="Create a topic to organize your research."
+                  title={t("topics.empty.title")}
+                  description={t("topics.empty.description")}
                   action={
                     <Button size="sm" onClick={() => navigate("/projects")}>
-                      Create topic
+                      {t("topics.newTopic")}
                     </Button>
                   }
                 />
               ) : (
                 <div className="space-y-2">
                   {activeProjects.map((project) => (
-                    <Card
-                      key={project.id}
-                      hover
-                      onClick={() => navigate(`/projects/${project.id}`)}
-                    >
+                    <Card key={project.id} hover onClick={() => navigate(`/projects/${project.id}`)}>
                       <div className="flex items-center gap-3">
                         <div
                           className="w-9 h-9 rounded-lg flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
-                          style={{
-                            backgroundColor: project.color || "#6366f1",
-                          }}
+                          style={{ backgroundColor: project.color || "#6366f1" }}
                         >
                           {project.title.charAt(0).toUpperCase()}
                         </div>

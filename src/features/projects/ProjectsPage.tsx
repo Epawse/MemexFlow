@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../../lib/AuthProvider";
 import { useProjects, createProject } from "../../hooks/usePowerSyncQueries";
 import { Modal } from "../../shared/components/Modal";
@@ -12,6 +13,7 @@ import { Spinner } from "../../shared/components/Spinner";
 import { TOPIC_COLORS } from "../../shared/constants";
 
 export function ProjectsPage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const { data: projects, isLoading, error } = useProjects(user?.id ?? "");
@@ -40,12 +42,12 @@ export function ProjectsPage() {
       );
       setShowCreateModal(false);
       resetForm();
-      toast.success("Topic created", {
-        description: `"${newTitle.trim()}" is ready.`,
+      toast.success(t("topics.created"), {
+        description: t("topics.ready", { title: newTitle.trim() }),
       });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      toast.error("Failed to create topic", {
+      const msg = err instanceof Error ? err.message : t("common.error");
+      toast.error(t("topics.createFailed"), {
         description: msg,
       });
     } finally {
@@ -60,10 +62,10 @@ export function ProjectsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Topics
+            {t("topics.title")}
           </h2>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            Organize your research into focused topics
+            {t("topics.description")}
           </p>
         </div>
         <Button onClick={() => setShowCreateModal(true)}>
@@ -80,7 +82,7 @@ export function ProjectsPage() {
               d="M12 4.5v15m7.5-7.5h-15"
             />
           </svg>
-          New Topic
+          {t("topics.newTopic")}
         </Button>
       </div>
 
@@ -89,19 +91,19 @@ export function ProjectsPage() {
       ) : error ? (
         <EmptyState
           className="mt-12"
-          title="Couldn't load topics"
-          description={error || "Please try again."}
+          title={t("common.error")}
+          description={error || t("common.retry")}
           action={
-            <Button onClick={() => window.location.reload()}>Reload</Button>
+            <Button onClick={() => window.location.reload()}>{t("common.retry")}</Button>
           }
         />
       ) : projectList.length === 0 ? (
         <EmptyState
-          title="No topics yet"
-          description="Create a topic to organize related captures and generate briefs."
+          title={t("topics.empty.title")}
+          description={t("topics.empty.description")}
           action={
             <Button onClick={() => setShowCreateModal(true)} size="sm">
-              Create your first topic
+              {t("topics.createFirst")}
             </Button>
           }
         />
@@ -130,7 +132,7 @@ export function ProjectsPage() {
                     </p>
                   )}
                   <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                    Updated {new Date(project.updated_at).toLocaleDateString()}
+                    {t("common.updated")} {new Date(project.updated_at).toLocaleDateString()}
                   </p>
                 </div>
               </div>
@@ -145,7 +147,7 @@ export function ProjectsPage() {
           setShowCreateModal(false);
           resetForm();
         }}
-        title="New Topic"
+        title={t("topics.newTopic")}
       >
         <form
           onSubmit={(e) => {
@@ -155,21 +157,21 @@ export function ProjectsPage() {
           className="space-y-4"
         >
           <Input
-            label="Title"
-            placeholder="My Research Topic"
+            label={t("topics.titleLabel")}
+            placeholder={t("topics.titleLabel")}
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
             required
           />
           <Input
-            label="Description (optional)"
-            placeholder="What is this topic about?"
+            label={t("topics.descriptionLabel")}
+            placeholder={t("topics.descriptionLabel")}
             value={newDescription}
             onChange={(e) => setNewDescription(e.target.value)}
           />
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Color
+              {t("topics.color")}
             </label>
             <div className="flex gap-2">
               {TOPIC_COLORS.map((color) => (
@@ -196,10 +198,10 @@ export function ProjectsPage() {
               }}
               type="button"
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button loading={creating} disabled={!newTitle.trim()}>
-              Create Topic
+              {t("topics.createTopic")}
             </Button>
           </div>
         </form>

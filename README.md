@@ -1,6 +1,6 @@
 # MemexFlow
 
-**Agent-native personal research OS** — capture URLs, extract structured memories via AI, organize them in topics, and generate research briefs with citations.
+**Agent-native personal knowledge companion** — save anything that catches your interest, let AI extract the key ideas, organize by topic, and rediscover what matters when it matters.
 
 Named after Vannevar Bush's 1945 ["Memex"](https://en.wikipedia.org/wiki/Memex) concept — a device for building associative knowledge trails.
 
@@ -12,11 +12,11 @@ Capture → Memory → Brief
  Signal    Recall
 ```
 
-- **Capture** — Paste a URL; AI fetches content and extracts title/summary
+- **Capture** — Paste a URL or note; AI fetches content and extracts title/summary
 - **Memory** — AI extracts structured knowledge units (claims, insights, entities) with confidence scores, embeddings, and source attribution
-- **Brief** — AI synthesizes up to 50 memories into a research brief with `[M1]` citation markers
-- **Signal** — Proactive monitoring: keyword matches on existing memories + RSS/GitHub external scan
-- **Recall** — Spaced-repetition resurfacing (time-based, project-active, association-dense, signal-triggered)
+- **Brief** — AI synthesizes memories into a curated digest with `[M1]` citation markers
+- **Signal** — Proactive monitoring: keyword matches on your memories + RSS/GitHub external scan
+- **Recall** — Spaced-repetition resurfacing (time-based, topic-active, association-dense, signal-triggered)
 
 All AI outputs carry source attribution and confidence scores. Memories link to each other with evidence relations (supports / contradicts / elaborates / related).
 
@@ -25,7 +25,7 @@ All AI outputs carry source attribution and confidence scores. Memories link to 
 <table>
   <tr>
     <td><img src="docs/screenshots/dashboard.png" alt="Dashboard" width="400" /><br><b>Dashboard</b> — Overview with stats, recall suggestions, and priority items</td>
-    <td><img src="docs/screenshots/topics.png" alt="Topics" width="400" /><br><b>Topics</b> — Organize research into topics with color coding</td>
+    <td><img src="docs/screenshots/topics.png" alt="Topics" width="400" /><br><b>Topics</b> — Organize interests into topics with color coding</td>
   </tr>
   <tr>
     <td><img src="docs/screenshots/captures.png" alt="Captures" width="400" /><br><b>Captures</b> — Save URLs and notes, confirm to extract memories</td>
@@ -56,7 +56,7 @@ Tauri Desktop App (React/TS)  ↔  Supabase (Postgres + pgvector)  ↔  Python A
 | Ingestion | Gemini 3 Flash | Extract title/content/summary from raw HTML |
 | Extraction | Gemini 3 Flash | Extract structured memories with confidence scores |
 | Embedding | all-MiniLM-L6-v2 (local) | 384-dim vectors for semantic search |
-| Briefing | Gemini 3 Flash | Synthesize memories into cited research brief |
+| Briefing | Gemini 3 Flash | Synthesize memories into cited digest |
 | Signal | Gemini 3 Flash (fallback: Gemini 2.5 Flash) | Keyword/regex matching + context extraction |
 
 ### Design Influences
