@@ -33,7 +33,6 @@ export function Modal({
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
 
-      // Focus trap: keep focus inside the modal
       if (e.key === "Tab" && panelRef.current) {
         const focusable = panelRef.current.querySelectorAll<HTMLElement>(
           'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
@@ -65,7 +64,6 @@ export function Modal({
     };
   }, [open, onClose]);
 
-  // Auto-focus the first focusable element when modal opens
   useEffect(() => {
     if (!open || !panelRef.current) return;
     const timer = setTimeout(() => {
@@ -85,13 +83,15 @@ export function Modal({
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div
         ref={overlayRef}
-        className="fixed inset-0 bg-black/50 transition-opacity duration-150"
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-200"
         onClick={onClose}
       />
       <div
         ref={panelRef}
         className={[
-          "relative bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700",
+          "relative bg-white/80 dark:bg-white/[0.08] backdrop-blur-2xl rounded-2xl",
+          "shadow-[0_20px_60px_rgba(0,0,0,0.15),0_8px_20px_rgba(0,0,0,0.08)]",
+          "border border-white/50 dark:border-white/[0.1]",
           "w-full mx-4",
           sizeStyles[size],
           className,
@@ -101,13 +101,13 @@ export function Modal({
         aria-label={title}
       >
         {title && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200/60 dark:border-white/[0.08]">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
               {title}
             </h2>
             <button
               onClick={onClose}
-              className="p-1 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100/80 dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
               aria-label={i18n.t("common.close")}
             >
               <svg
@@ -126,7 +126,7 @@ export function Modal({
             </button>
           </div>
         )}
-        <div className="px-6 py-4">{children}</div>
+        <div className="px-6 py-5">{children}</div>
       </div>
     </div>
   );

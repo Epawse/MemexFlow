@@ -117,7 +117,7 @@ function BriefDetail({
         <Button variant="danger" size="sm" onClick={handleDelete}>{t("common.delete")}</Button>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+      <div className="bg-white/70 dark:bg-white/[0.08] backdrop-blur-xl rounded-2xl border border-white/50 dark:border-white/[0.1] p-6">
         <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">{brief.title}</h2>
         <div className="prose prose-sm dark:prose-invert max-w-none">
           {renderContent(brief.content, citations ?? null, citedMemories)}

@@ -281,7 +281,7 @@ export function ProjectDetailPage() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
           </svg>
         </button>
-        <div className="w-10 h-10 rounded-lg flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
           style={{ backgroundColor: project.color || "#6366f1" }}>
           {project.title.charAt(0).toUpperCase()}
         </div>
@@ -307,7 +307,7 @@ export function ProjectDetailPage() {
             <input type="url" placeholder={t("topics.capturePlaceholder")} value={captureUrl}
               onChange={(e) => setCaptureUrl(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleCapture()}
-              className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500" />
+              className="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500" />
             <Button onClick={handleCapture} loading={capturing} disabled={!captureUrl.trim()}>{t("topics.captureButton")}</Button>
           </div>
           {capturesError ? (
@@ -319,7 +319,7 @@ export function ProjectDetailPage() {
               {captureList.map((capture) => (
                 <Card key={capture.id} hover onClick={() => navigate(`/captures/${capture.id}`)}>
                   <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-primary-50 dark:bg-primary-900/30 flex items-center justify-center flex-shrink-0">
+                    <div className="w-8 h-8 rounded-xl bg-primary-50 dark:bg-primary-900/30 flex items-center justify-center flex-shrink-0">
                       <svg className="w-4 h-4 text-primary-600 dark:text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d={TYPE_ICONS[capture.type] || TYPE_ICONS.url} />
                       </svg>
@@ -405,16 +405,16 @@ export function ProjectDetailPage() {
       {/* Signals tab */}
       {activeTab === "signals" && (
         <div>
-          <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700/30 rounded-xl border border-gray-200 dark:border-gray-700">
+          <div className="mb-6 p-4 bg-white/60 dark:bg-white/[0.06] backdrop-blur-xl rounded-2xl border border-gray-200/60 dark:border-white/[0.08]">
             <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">{t("topics.newSignalRule")}</h3>
             <div className="flex gap-3 mb-3">
               <input type="text" placeholder={t("signals.ruleNamePlaceholder")}
                 value={signalName} onChange={(e) => setSignalName(e.target.value)}
-                className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                className="flex-1 px-3 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
               <input type="text" placeholder={t("signals.keywordPlaceholder")}
                 value={signalQuery} onChange={(e) => setSignalQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleCreateSignal()}
-                className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                className="flex-1 px-3 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
             </div>
             <div className="mb-3">
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">{t("topics.sourceLabel")}</label>
@@ -433,17 +433,17 @@ export function ProjectDetailPage() {
               <div className="mb-3">
                 <input type="url" placeholder={t("topics.feedUrlPlaceholder")} value={feedUrl}
                   onChange={(e) => setFeedUrl(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                  className="w-full px-3 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
               </div>
             )}
             {channelType === "github_release" && (
               <div className="flex gap-2 mb-3">
                 <input type="text" placeholder={t("topics.ownerPlaceholder")} value={githubOwner}
                   onChange={(e) => setGithubOwner(e.target.value)}
-                  className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                  className="flex-1 px-3 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
                 <input type="text" placeholder={t("topics.repoPlaceholder")} value={githubRepo}
                   onChange={(e) => setGithubRepo(e.target.value)}
-                  className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                  className="flex-1 px-3 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
               </div>
             )}
             <Button size="sm" onClick={handleCreateSignal} loading={creatingSignal}
@@ -463,14 +463,14 @@ export function ProjectDetailPage() {
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-medium text-gray-900 dark:text-white">{rule.name}</p>
                         {rule.channel_type !== "internal" && (
-                          <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                          <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-sky-500/10 text-sky-700 dark:text-sky-400">
                             {rule.channel_type === "rss" ? "RSS" : "GitHub"}
                           </span>
                         )}
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                           rule.is_active
-                            ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                            : "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
+                            ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                            : "bg-gray-500/10 text-gray-600 dark:text-gray-400"
                         }`}>
                           {rule.is_active ? t("topics.active") : t("topics.paused")}
                         </span>
@@ -516,7 +516,7 @@ export function ProjectDetailPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t("topics.descriptionLabel")}</label>
               <textarea value={editDescription || (project.description ?? "")} onChange={(e) => setEditDescription(e.target.value)}
-                rows={3} className="block w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500" />
+                rows={3} className="block w-full px-3 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t("topics.color")}</label>
@@ -707,7 +707,7 @@ function BriefDetail({
         <Button variant="danger" size="sm" onClick={onDelete}>{t("common.delete")}</Button>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+      <div className="bg-white/70 dark:bg-white/[0.08] backdrop-blur-xl rounded-2xl border border-white/50 dark:border-white/[0.1] p-6">
         <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">{brief.title}</h2>
         <div className="prose prose-sm dark:prose-invert max-w-none">
           {renderContent(brief.content, citations ?? null, citedMemories)}
@@ -725,7 +725,7 @@ function BriefDetail({
               const memory = citedMemories.get(citation.memory_id);
               return (
                 <div key={citation.memory_id}
-                  className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 text-sm">
+                  className="bg-white/60 dark:bg-white/[0.06] backdrop-blur-xl rounded-xl border border-gray-200/60 dark:border-white/[0.08] p-3 text-sm">
                   <span className="text-xs font-medium text-primary-600 dark:text-primary-400">[M{idx + 1}]</span>
                   <p className="text-gray-700 dark:text-gray-300 mt-0.5">
                     {memory?.summary || memory?.content?.slice(0, 100) || t("topics.memoryNotFound")}

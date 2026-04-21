@@ -140,7 +140,7 @@ export function SignalsPage() {
   return (
     <div>
       {showSyncWarning && (
-        <div className="mb-4 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+        <div className="mb-4 p-3 rounded-xl bg-amber-500/10 dark:bg-amber-500/10 border border-amber-200/60 dark:border-amber-800/60">
           <div className="flex items-center justify-between">
             <div className="text-sm text-amber-800 dark:text-amber-300">
               {!syncStatus?.connected
@@ -240,7 +240,7 @@ export function SignalsPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                        <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-purple-500/10 text-purple-700 dark:text-purple-400">
                           {discovery.source_type === "rss" ? "RSS" : "GitHub"}
                         </span>
                         {rule && (

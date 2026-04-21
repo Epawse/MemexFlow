@@ -22,6 +22,7 @@ import { Button } from "../../shared/components/Button";
 import { TYPE_ICONS } from "../../shared/constants";
 import { PriorityBadge } from "../../shared/components/PriorityBadge";
 import { formatDate } from "../../lib/date";
+
 export function DashboardPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -70,29 +71,49 @@ export function DashboardPage() {
       label: t("dashboard.stats.captures"),
       value: stats.captures,
       color: "text-primary-600 dark:text-primary-400",
-      bg: "bg-primary-50 dark:bg-primary-900/20",
+      bg: "bg-primary-500/10 dark:bg-primary-500/10",
       href: "/captures",
+      icon: (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+        </svg>
+      ),
     },
     {
       label: t("dashboard.stats.memories"),
       value: stats.memories,
       color: "text-purple-600 dark:text-purple-400",
-      bg: "bg-purple-50 dark:bg-purple-900/20",
+      bg: "bg-purple-500/10 dark:bg-purple-500/10",
       href: "/memories",
+      icon: (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+        </svg>
+      ),
     },
     {
       label: t("dashboard.stats.topics"),
       value: stats.projects,
-      color: "text-green-600 dark:text-green-400",
-      bg: "bg-green-50 dark:bg-green-900/20",
+      color: "text-emerald-600 dark:text-emerald-400",
+      bg: "bg-emerald-500/10 dark:bg-emerald-500/10",
       href: "/projects",
+      icon: (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+        </svg>
+      ),
     },
     {
       label: t("dashboard.stats.briefs"),
       value: stats.briefs,
       color: "text-amber-600 dark:text-amber-400",
-      bg: "bg-amber-50 dark:bg-amber-900/20",
+      bg: "bg-amber-500/10 dark:bg-amber-500/10",
       href: "/briefs",
+      icon: (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      ),
     },
   ];
 
@@ -116,7 +137,7 @@ export function DashboardPage() {
           value={captureUrl}
           onChange={(e) => setCaptureUrl(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleQuickCapture()}
-          className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+          className="flex-1 px-4 py-2.5 rounded-xl border border-gray-300/80 dark:border-gray-600/80 bg-white/60 dark:bg-white/[0.06] backdrop-blur-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 transition-all"
         />
         <Button
           onClick={handleQuickCapture}
@@ -142,26 +163,37 @@ export function DashboardPage() {
         <>
           <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {statCards.map((stat) => (
-              <div
+              <Card
                 key={stat.label}
+                hover
                 onClick={() => navigate(stat.href)}
-                className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-5 cursor-pointer hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600 transition-shadow"
+                padding="lg"
               >
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                  {stat.label}
-                </p>
-                <p className={`mt-1 text-3xl font-bold ${stat.color}`}>
-                  {stat.value}
-                </p>
-              </div>
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-xl ${stat.bg} flex items-center justify-center ${stat.color}`}>
+                    {stat.icon}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                      {stat.label}
+                    </p>
+                    <p className={`mt-0.5 text-3xl font-bold ${stat.color}`}>
+                      {stat.value}
+                    </p>
+                  </div>
+                </div>
+              </Card>
             ))}
           </div>
 
           {signalCount.count > 0 && (
             <div className="mt-6">
-              <button onClick={() => navigate("/signals")} aria-label={t("signals.title")}
-                className="flex items-center gap-3 px-4 py-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors w-full text-left">
-                <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
+              <button
+                onClick={() => navigate("/signals")}
+                aria-label={t("signals.title")}
+                className="flex items-center gap-3 px-4 py-3 bg-amber-500/10 dark:bg-amber-500/10 border border-amber-200/60 dark:border-amber-800/60 rounded-2xl cursor-pointer hover:bg-amber-500/15 dark:hover:bg-amber-500/15 transition-colors w-full text-left"
+              >
+                <div className="w-9 h-9 rounded-xl bg-amber-500/15 dark:bg-amber-500/15 flex items-center justify-center">
                   <svg className="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
                   </svg>
@@ -176,10 +208,13 @@ export function DashboardPage() {
           )}
 
           {pendingCaptureCount.count > 0 && (
-            <div className={signalCount.count > 0 ? "mt-4" : "mt-6"}>
-              <button onClick={() => navigate("/captures")} aria-label={t("captures.title")}
-                className="flex items-center gap-3 px-4 py-3 bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-xl cursor-pointer hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors w-full text-left">
-                <div className="w-8 h-8 rounded-lg bg-primary-100 dark:bg-primary-900/40 flex items-center justify-center">
+            <div className={signalCount.count > 0 ? "mt-3" : "mt-6"}>
+              <button
+                onClick={() => navigate("/captures")}
+                aria-label={t("captures.title")}
+                className="flex items-center gap-3 px-4 py-3 bg-primary-500/10 dark:bg-primary-500/10 border border-primary-200/60 dark:border-primary-800/60 rounded-2xl cursor-pointer hover:bg-primary-500/15 dark:hover:bg-primary-500/15 transition-colors w-full text-left"
+              >
+                <div className="w-9 h-9 rounded-xl bg-primary-500/15 dark:bg-primary-500/15 flex items-center justify-center">
                   <svg className="w-4 h-4 text-primary-600 dark:text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-3.848 0c-1.131.094-1.976 1.057-1.976 2.192V16.5c0 1.108.845 2.046 1.976 2.192" />
                   </svg>
@@ -205,7 +240,7 @@ export function DashboardPage() {
               </div>
               <div className="space-y-2">
                 {topRecalls.map((recall) => (
-                  <Card key={recall.id}>
+                  <Card key={recall.id} padding="md">
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
@@ -221,10 +256,22 @@ export function DashboardPage() {
                         )}
                       </div>
                       <div className="flex gap-1.5 flex-shrink-0">
-                        <Button variant="primary" size="sm" onClick={async () => { await revisitRecall(recall.id); }}>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={async () => {
+                            await revisitRecall(recall.id);
+                          }}
+                        >
                           {t("recall.revisit")}
                         </Button>
-                        <Button variant="text" size="sm" onClick={async () => { await dismissRecall(recall.id); }}>
+                        <Button
+                          variant="text"
+                          size="sm"
+                          onClick={async () => {
+                            await dismissRecall(recall.id);
+                          }}
+                        >
                           {t("recall.dismiss")}
                         </Button>
                       </div>
@@ -246,7 +293,7 @@ export function DashboardPage() {
                 </Button>
               </div>
               {recentCaptures.length === 0 ? (
-                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-8 text-center">
+                <div className="bg-white/60 dark:bg-white/[0.06] backdrop-blur-xl rounded-2xl border border-gray-200/60 dark:border-white/[0.08] p-8 text-center">
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     {t("dashboard.empty.captures")}
                   </p>
@@ -256,7 +303,7 @@ export function DashboardPage() {
                   {recentCaptures.map((capture) => (
                     <Card key={capture.id} hover onClick={() => navigate(`/captures/${capture.id}`)}>
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-primary-50 dark:bg-primary-900/30 flex items-center justify-center flex-shrink-0">
+                        <div className="w-9 h-9 rounded-xl bg-primary-500/10 dark:bg-primary-500/10 flex items-center justify-center flex-shrink-0">
                           <svg className="w-4 h-4 text-primary-600 dark:text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d={TYPE_ICONS[capture.type] || TYPE_ICONS.url} />
                           </svg>
@@ -301,7 +348,7 @@ export function DashboardPage() {
                     <Card key={project.id} hover onClick={() => navigate(`/projects/${project.id}`)}>
                       <div className="flex items-center gap-3">
                         <div
-                          className="w-9 h-9 rounded-lg flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
+                          className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
                           style={{ backgroundColor: project.color || "#6366f1" }}
                         >
                           {project.title.charAt(0).toUpperCase()}

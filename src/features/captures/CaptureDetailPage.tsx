@@ -192,7 +192,7 @@ export function CaptureDetailPage() {
 
       {/* AI Summary */}
       {meta.summary && (
-        <div className="mb-6 p-4 rounded-lg bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800">
+        <div className="mb-6 p-4 rounded-xl bg-primary-500/10 dark:bg-primary-500/10 border border-primary-200/60 dark:border-primary-800/60">
           <p className="text-xs font-medium text-primary-700 dark:text-primary-300 mb-1">{t("captures.aiSummary")}</p>
           <p className="text-sm text-primary-900 dark:text-primary-100">{meta.summary}</p>
         </div>
@@ -217,12 +217,12 @@ export function CaptureDetailPage() {
       {capture.content ? (
         <div className="mb-6">
           <h2 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">{t("captures.content")}</h2>
-          <div className="prose prose-sm dark:prose-invert max-w-none bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+          <div className="prose prose-sm dark:prose-invert max-w-none bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
             {renderContent(capture.content, null, new Map())}
           </div>
         </div>
       ) : (
-        <div className="mb-6 p-8 text-center bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="mb-6 p-8 text-center bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700">
           <p className="text-sm text-gray-500 dark:text-gray-400">
             {status === "pending" ? t("captures.contentPending") : t("captures.contentUnavailable")}
           </p>
@@ -243,7 +243,7 @@ export function CaptureDetailPage() {
                   <p className="text-sm text-gray-900 dark:text-white">{memory.content}</p>
                   <div className="flex items-center gap-2 mt-2">
                     {memMeta.memory_type && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-700 dark:text-purple-400">
                         {memMeta.memory_type}
                       </span>
                     )}

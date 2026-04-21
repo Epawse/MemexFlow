@@ -36,22 +36,22 @@ export function DashboardLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
+    <div className="min-h-screen bg-[#FDFBF7] dark:bg-[#0f0f11] flex">
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-20 lg:hidden"
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-20 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-30 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-transform lg:translate-x-0 ${
+        className={`fixed lg:static inset-y-0 left-0 z-30 w-64 bg-white/80 dark:bg-white/[0.06] backdrop-blur-2xl border-r border-gray-200/60 dark:border-white/[0.08] transform transition-transform lg:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         <div className="flex flex-col h-full">
-          <div className="px-6 py-5 border-b border-gray-200 dark:border-gray-700">
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+          <div className="px-6 py-5">
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">
               MemexFlow
             </h1>
           </div>
@@ -64,10 +64,10 @@ export function DashboardLayout() {
                 end={item.to === "/"}
                 onClick={() => setSidebarOpen(false)}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                  `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 cursor-pointer ${
                     isActive
-                      ? "bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
-                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      ? "bg-primary-600 text-white shadow-sm shadow-primary-500/20"
+                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-100/60 dark:hover:bg-white/[0.06]"
                   }`
                 }
               >
@@ -89,9 +89,9 @@ export function DashboardLayout() {
             ))}
           </nav>
 
-          <div className="px-3 py-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="px-3 py-4 border-t border-gray-200/60 dark:border-white/[0.08]">
             <div className="flex items-center gap-3 px-3 py-2">
-              <div className="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center text-white text-sm font-medium">
+              <div className="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center text-white text-sm font-medium shadow-sm">
                 {user?.email?.[0]?.toUpperCase() || "?"}
               </div>
               <div className="flex-1 min-w-0">
@@ -102,7 +102,7 @@ export function DashboardLayout() {
               <ThemeToggle />
               <button
                 onClick={toggleLanguage}
-                className="p-1.5 rounded-md text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-xs font-medium"
+                className="p-1.5 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100/60 dark:hover:bg-white/[0.08] cursor-pointer text-xs font-medium transition-colors"
                 title={t("settings.language")}
               >
                 {i18n.language === "zh" ? "中" : "EN"}
@@ -111,7 +111,7 @@ export function DashboardLayout() {
             <SyncStatusIndicator />
             <button
               onClick={signOut}
-              className="w-full mt-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-left cursor-pointer"
+              className="w-full mt-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100/60 dark:hover:bg-white/[0.08] rounded-xl transition-colors text-left cursor-pointer"
             >
               {t("auth.logout")}
             </button>
@@ -120,10 +120,10 @@ export function DashboardLayout() {
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="lg:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center gap-3">
+        <header className="lg:hidden bg-white/80 dark:bg-white/[0.06] backdrop-blur-xl border-b border-gray-200/60 dark:border-white/[0.08] px-4 py-3 flex items-center gap-3">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="p-1.5 rounded-md text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+            className="p-1.5 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100/60 dark:hover:bg-white/[0.08] cursor-pointer transition-colors"
           >
             <svg
               className="w-6 h-6"

@@ -117,7 +117,7 @@ export function ProjectsPage() {
             >
               <div className="flex items-start gap-3">
                 <div
-                  className="w-10 h-10 rounded-lg flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
+                  className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
                   style={{ backgroundColor: project.color || "#6366f1" }}
                 >
                   {project.title.charAt(0).toUpperCase()}

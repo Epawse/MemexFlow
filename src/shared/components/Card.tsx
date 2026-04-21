@@ -6,12 +6,13 @@ interface CardProps {
   padding?: "none" | "sm" | "md" | "lg";
   hover?: boolean;
   onClick?: () => void;
+  glass?: boolean;
 }
 
 const paddingStyles = {
   none: "",
   sm: "p-3",
-  md: "p-4",
+  md: "p-5",
   lg: "p-6",
 };
 
@@ -21,6 +22,7 @@ export function Card({
   padding = "md",
   hover = false,
   onClick,
+  glass = true,
 }: CardProps) {
   const handleKeyDown = onClick
     ? (e: React.KeyboardEvent) => {
@@ -38,11 +40,14 @@ export function Card({
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
       className={[
-        "bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700",
+        "rounded-2xl border transition-all duration-200",
+        glass
+          ? "bg-white/70 dark:bg-white/[0.08] backdrop-blur-xl border-white/40 dark:border-white/[0.08]"
+          : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700",
         paddingStyles[padding],
         hover &&
-          "transition-shadow duration-150 hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600 cursor-pointer",
-        onClick && "cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2",
+          "cursor-pointer hover:shadow-[0_12px_40px_rgba(0,0,0,0.1),0_2px_6px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 hover:bg-white/80 dark:hover:bg-white/[0.12]",
+        onClick && "cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:ring-offset-2",
         className,
       ].join(" ")}
     >
